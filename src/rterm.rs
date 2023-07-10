@@ -1,6 +1,6 @@
 use std::{
     io::{self, Stdout},
-    time::Duration, collections::HashMap,
+    time::Duration, collections::HashMap, hash::Hash,
 };
 
 use anyhow::{Context, Result};
@@ -32,8 +32,8 @@ pub fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Re
     terminal.show_cursor().context("unable to show cursor")
 }
 
-pub fn assemble_render(objects : HashMap<String, GameObject>) -> Box<dyn Fn(&mut ratatui::Frame<CrosstermBackend<Stdout>>)> {
-    let objs = objects.clone();
+pub fn assemble_render(objects : &HashMap<String, GameObject>) -> Box<dyn Fn(&mut ratatui::Frame<CrosstermBackend<Stdout>>)> {
+    let objs : HashMap<String, GameObject> = objects.clone();
     let closure = move |frame : &mut ratatui::Frame<CrosstermBackend<Stdout>>| {
         for iter in objs.iter() {
             frame.render_widget(iter.1.to_text(), frame.size())

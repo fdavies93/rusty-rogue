@@ -31,7 +31,7 @@ fn main() -> Result<()> {
         ("player".to_string(), player),
         ("wall".to_string(), wall)
     ]);
-    run(&mut terminal, objs).context("app loop failed")?;
+    run(&mut terminal, &objs).context("app loop failed")?;
     rterm::restore_terminal(&mut terminal).context("restore terminal failed")?;
     Ok(())
 }
@@ -40,9 +40,9 @@ fn main() -> Result<()> {
 /// state. This example exits when the user presses 'q'. Other styles of application loops are
 /// possible, for example, you could have multiple application states and switch between them based
 /// on events, or you could have a single application state and update it based on events.
-pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, objects : HashMap<String, GameObject>) -> Result<()> {
+pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, objects : &HashMap<String, GameObject>) -> Result<()> {
     loop {
-        terminal.draw(rterm::assemble_render(objects.clone()))?;
+        terminal.draw(rterm::assemble_render(objects))?;
         if rterm::should_quit()? {
             break;
         }
