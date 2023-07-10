@@ -1,6 +1,6 @@
 use std::{
     io::{self, Stdout},
-    time::Duration,
+    time::Duration, collections::HashMap,
 };
 
 use anyhow::{Context, Result};
@@ -11,6 +11,7 @@ use crossterm::{
 };
 use ratatui::{backend::CrosstermBackend, widgets::Paragraph, Terminal};
 
+use crate::game::{ToText, GameObject};
 
 /// Setup the terminal. This is where you would enable raw mode, enter the alternate screen, and
 /// hide the cursor. This example does not handle errors. A more robust application would probably
@@ -31,12 +32,22 @@ pub fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Re
     terminal.show_cursor().context("unable to show cursor")
 }
 
+pub fn assemble_render(objects : HashMap<String, GameObject>) -> Box<dyn Fn(&mut ratatui::Frame<CrosstermBackend<Stdout>>)> {
+    let objs = objects.clone();
+    let closure = move |frame : &mut ratatui::Frame<CrosstermBackend<Stdout>>| {
+        for iter in objs.iter() {
+            frame.render_widget(iter.1.to_text(), frame.size())
+        }
+    };
+    
+    Box::new(closure)
+}
+
 /// Render the application. This is where you would draw the application UI. This example just
 /// draws a greeting.
-pub fn render_app(frame: &mut ratatui::Frame<CrosstermBackend<Stdout>>) {
-    let greeting = Paragraph::new("Hello World! (press 'q' to quit)");
-    frame.render_widget(greeting, frame.size());
-}
+// pub fn render_app(frame: &mut ratatui::Frame<CrosstermBackend<Stdout>>) {
+//     frame.render_widget(greeting, frame.size());
+// }
 
 /// Check if the user has pressed 'q'. This is where you would handle events. This example just
 /// checks if the user has pressed 'q' and returns true if they have. It does not handle any other
