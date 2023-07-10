@@ -9,7 +9,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use ratatui::{backend::CrosstermBackend, widgets::Paragraph, Terminal};
+use ratatui::{backend::CrosstermBackend, widgets::Paragraph, Terminal, layout::Rect};
 
 use crate::game::{ToText, GameObject};
 
@@ -35,8 +35,18 @@ pub fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Re
 pub fn assemble_render(objects : &HashMap<String, GameObject>) -> Box<dyn Fn(&mut ratatui::Frame<CrosstermBackend<Stdout>>)> {
     let objs : HashMap<String, GameObject> = objects.clone();
     let closure = move |frame : &mut ratatui::Frame<CrosstermBackend<Stdout>>| {
+                
         for iter in objs.iter() {
-            frame.render_widget(iter.1.to_text(), frame.size())
+
+            let render_at = Rect {
+                x: iter.1.position.0,
+                y: iter.1.position.1,
+                width: 1,
+                height: 1
+            };
+
+            frame.render_widget(iter.1.to_text(), render_at);
+
         }
     };
     

@@ -23,7 +23,7 @@ fn main() -> Result<()> {
         glyph: '@'
     };
     let wall = GameObject {
-        position: (0,0),
+        position: (5,0),
         glyph: '█'
     };
     let mut terminal = rterm::setup_terminal().context("setup failed")?;
