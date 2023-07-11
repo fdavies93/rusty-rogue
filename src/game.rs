@@ -3,7 +3,7 @@ use std::{
     time::Duration, collections::HashMap,
 };
 
-use ratatui::widgets::Paragraph as Paragraph;
+use ratatui::{widgets::Paragraph as Paragraph, layout::Rect};
 
 pub struct GameState {
     name: String,
@@ -31,19 +31,19 @@ pub enum TileType {
 #[derive(Clone)]
 pub struct TileMap {
     tiles: Vec<Vec<TileType>>,
-    size: (usize, usize)
+    size: (u16, u16)
 }
 
 
 impl TileMap {
-    pub fn new(size : (usize, usize)) -> Self {
+    pub fn new(size : (u16, u16)) -> Self {
         Self {
             tiles: TileMap::instantiate_map(size),
             size: size
         }
     }
 
-    pub fn instantiate_map ( size : (usize, usize) ) -> Vec<Vec<TileType>> {
+    pub fn instantiate_map ( size : (u16, u16) ) -> Vec<Vec<TileType>> {
         let mut tiles = Vec::new();
 
         for x in 0..size.0 {
@@ -52,18 +52,41 @@ impl TileMap {
 
             for _y in 0..size.1 {
 
-                tiles[x].push(TileType::FLOOR);
+                tiles[usize::from(x)].push(TileType::FLOOR);
             }
         }
 
         return tiles;
     }
 
-    pub fn tile_at(&self, pos : (usize, usize)) -> TileType {
-        return self.tiles[pos.0][pos.1];
+    pub fn tile_at(&self, pos : (u16, u16)) -> TileType {
+        return self.tiles[usize::from(pos.0)][usize::from(pos.1)];
     }
 
-    pub fn get_size(&self) -> (usize, usize) {
+    pub fn get_size(&self) -> (u16, u16) {
         return self.size;
     }
+
+    pub fn to_rect(&self) -> Rect {
+        Rect { x: 0, y: 0, width: self.size.0, height: self.size.1 }
+    }
+
+    pub fn draw_rect(&mut self, pos: &Rect, tile: TileType, filled: bool) {
+        // remove anything out of bounds of tilemap
+        let real_pos = self.to_rect().intersection(*pos);
+
+        for x in real_pos.left()..pos.right() {
+            for y in real_pos.top()..pos.bottom() {
+                if filled || (!filled && (
+                    (x+1 == real_pos.right()) || 
+                    (x == real_pos.left()) ||
+                    (y+1 == real_pos.bottom()) ||
+                    (y == real_pos.top())
+                )) {
+                    self.tiles[usize::from(x)][usize::from(y)] = tile
+                }
+            }
+        }
+    }
+
 }

@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use game::{GameObject, TileMap};
-use ratatui::{backend::CrosstermBackend, widgets::Paragraph, Terminal};
+use game::{GameObject, TileMap, TileType};
+use ratatui::{backend::CrosstermBackend, widgets::Paragraph, Terminal, layout::Rect};
 use std::{
     io::{self, Stdout},
     time::Duration, collections::HashMap,
@@ -19,14 +19,18 @@ mod game;
 /// presses 'q'.
 fn main() -> Result<()> {
     let player = GameObject {
-        position: (0,0),
+        position: (1,1),
         glyph: '@'
     };
     let mut terminal = rterm::setup_terminal().context("setup failed")?;
     let objs = HashMap::from([
         ("player".to_string(), player),
     ]);
-    let map = TileMap::new( (15,15) );
+    // ratatui handles text overflowing the buffer by truncating it - good
+    // translating from world -> camera space should therefore be sufficient
+    // for rendering to succeed even on large maps
+    let mut map = TileMap::new( (15,15) );
+    map.draw_rect(&Rect { x: 0, y: 0, width: 15, height: 15 }, TileType::WALL, false);
     run(&mut terminal, &objs, &map).context("app loop failed")?;
     rterm::restore_terminal(&mut terminal).context("restore terminal failed")?;
     Ok(())

@@ -13,6 +13,7 @@ use ratatui::{
     backend::CrosstermBackend, 
     widgets::Paragraph, 
     Terminal, 
+    Frame,
     layout::Rect,
     text::{Line, Span}
 };
@@ -38,10 +39,10 @@ pub fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Re
     terminal.show_cursor().context("unable to show cursor")
 }
 
-pub fn assemble_render(objects : &HashMap<String, GameObject>, map : &TileMap) -> Box<dyn Fn(&mut ratatui::Frame<CrosstermBackend<Stdout>>)> {
+pub fn assemble_render(objects : &HashMap<String, GameObject>, map : &TileMap) -> Box<dyn Fn(&mut Frame<CrosstermBackend<Stdout>>)> {
     let objs : HashMap<String, GameObject> = objects.clone();
     let map : TileMap = map.clone();
-    let closure = move |frame : &mut ratatui::Frame<CrosstermBackend<Stdout>>| {
+    let closure = move |frame : &mut Frame<CrosstermBackend<Stdout>>| {
 
         let map_size = map.get_size();
         let mut text = vec![];
