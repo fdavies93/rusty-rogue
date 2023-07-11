@@ -1,6 +1,6 @@
 use std::{
     io::{self, Stdout},
-    time::Duration, collections::HashMap, hash::Hash,
+    time::Duration, collections::HashMap, hash::Hash, ptr,
 };
 
 use anyhow::{Context, Result};
@@ -39,7 +39,7 @@ pub fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Re
     terminal.show_cursor().context("unable to show cursor")
 }
 
-pub fn assemble_render(objects : &HashMap<String, GameObject>, map : &TileMap) -> Box<dyn Fn(&mut Frame<CrosstermBackend<Stdout>>)> {
+pub fn assemble_render(objects : &mut HashMap<String, GameObject>, map : &TileMap) -> Box<dyn Fn(&mut Frame<CrosstermBackend<Stdout>>)> {
     let objs : HashMap<String, GameObject> = objects.clone();
     let map : TileMap = map.clone();
     let closure = move |frame : &mut Frame<CrosstermBackend<Stdout>>| {
@@ -91,11 +91,11 @@ pub fn assemble_render(objects : &HashMap<String, GameObject>, map : &TileMap) -
 /// checks if the user has pressed 'q' and returns true if they have. It does not handle any other
 /// events. There is a 250ms timeout on the event poll so that the application can exit in a timely
 /// manner, and to ensure that the terminal is rendered at least once every 250ms.
-pub fn should_quit() -> Result<bool> {
+pub fn poll() -> Result<KeyCode> {
     if event::poll(Duration::from_millis(250)).context("event poll failed")? {
         if let Event::Key(key) = event::read().context("event read failed")? {
-            return Ok(KeyCode::Char('q') == key.code);
+            return Ok(key.code);
         }
     }
-    Ok(false)
+    Ok(KeyCode::Null)
 }

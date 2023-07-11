@@ -22,7 +22,7 @@ impl GameObject {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum TileType {
     FLOOR,
     WALL
