@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use game::GameObject;
+use game::{GameObject, TileMap};
 use ratatui::{backend::CrosstermBackend, widgets::Paragraph, Terminal};
 use std::{
     io::{self, Stdout},
@@ -22,16 +22,12 @@ fn main() -> Result<()> {
         position: (0,0),
         glyph: '@'
     };
-    let wall = GameObject {
-        position: (5,0),
-        glyph: '█'
-    };
     let mut terminal = rterm::setup_terminal().context("setup failed")?;
-    let objs: HashMap<String, GameObject> = HashMap::from([
+    let objs = HashMap::from([
         ("player".to_string(), player),
-        ("wall".to_string(), wall)
     ]);
-    run(&mut terminal, &objs).context("app loop failed")?;
+    let map = TileMap::new( (15,15) );
+    run(&mut terminal, &objs, &map).context("app loop failed")?;
     rterm::restore_terminal(&mut terminal).context("restore terminal failed")?;
     Ok(())
 }
@@ -40,9 +36,9 @@ fn main() -> Result<()> {
 /// state. This example exits when the user presses 'q'. Other styles of application loops are
 /// possible, for example, you could have multiple application states and switch between them based
 /// on events, or you could have a single application state and update it based on events.
-pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, objects : &HashMap<String, GameObject>) -> Result<()> {
+pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, objects : &HashMap<String, GameObject>, map : &TileMap) -> Result<()> {
     loop {
-        terminal.draw(rterm::assemble_render(objects))?;
+        terminal.draw(rterm::assemble_render(objects, map))?;
         if rterm::should_quit()? {
             break;
         }

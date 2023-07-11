@@ -9,9 +9,15 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use ratatui::{backend::CrosstermBackend, widgets::Paragraph, Terminal, layout::Rect};
+use ratatui::{
+    backend::CrosstermBackend, 
+    widgets::Paragraph, 
+    Terminal, 
+    layout::Rect,
+    text::{Line, Span}
+};
 
-use crate::game::{ToText, GameObject};
+use crate::game::{GameObject, TileMap, TileType};
 
 /// Setup the terminal. This is where you would enable raw mode, enter the alternate screen, and
 /// hide the cursor. This example does not handle errors. A more robust application would probably
@@ -32,10 +38,31 @@ pub fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Re
     terminal.show_cursor().context("unable to show cursor")
 }
 
-pub fn assemble_render(objects : &HashMap<String, GameObject>) -> Box<dyn Fn(&mut ratatui::Frame<CrosstermBackend<Stdout>>)> {
+pub fn assemble_render(objects : &HashMap<String, GameObject>, map : &TileMap) -> Box<dyn Fn(&mut ratatui::Frame<CrosstermBackend<Stdout>>)> {
     let objs : HashMap<String, GameObject> = objects.clone();
+    let map : TileMap = map.clone();
     let closure = move |frame : &mut ratatui::Frame<CrosstermBackend<Stdout>>| {
-                
+
+        let map_size = map.get_size();
+        let mut text = vec![];
+         
+        for y in 0..map_size.1 {
+            let mut line = "".to_string(); 
+            for x in 0..map_size.0 {
+                let glyph = map.tile_at((x,y));
+
+                let ch = match glyph {
+                    TileType::FLOOR => '.',
+                    TileType::WALL => '█'
+                };
+
+                line.push(ch);
+            }
+            text.push(Line::from(line));
+        }
+        let grid = Paragraph::new(text);
+        frame.render_widget(grid, frame.size());
+
         for iter in objs.iter() {
 
             let render_at = Rect {
