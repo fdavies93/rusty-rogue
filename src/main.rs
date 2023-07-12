@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, Error};
-use game::{GameObject, TileMap, TileType, GameEventType, GameEvent, InputData};
+use game::{GameObject, TileMap, TileType, GameEventType, GameEvent, InputData, GameEventQueue};
 use ratatui::{backend::CrosstermBackend, widgets::{Paragraph, canvas::Map}, Terminal, layout::Rect};
 use std::{
     io::{self, Stdout},
@@ -26,9 +26,7 @@ fn main() -> Result<()> {
     let mut player = GameObject {
         position: (1,1),
         glyph: '@',
-        listeners: HashMap::from([
-            ( GameEventType::INPUT, player_move as fn(&GameEvent, &mut GameObject, &TileMap) )
-        ])
+        events: GameEventQueue::new()
     };
     let mut terminal = rterm::setup_terminal().context("setup failed")?;
     let mut objs = HashMap::from([
@@ -62,14 +60,8 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, objects : &mut Has
 
         if key == KeyCode::Esc { break }
         for obj in objects.values_mut() {
-            let mut input_fn: &fn(&GameEvent, &mut GameObject, &TileMap);
-            
-            match obj.listeners.get(&GameEventType::INPUT) {
-                None => continue,
-                Some(f) => input_fn = f
-            };
-            
-            input_fn(&input_ev, obj, map)
+            let queue = &mut obj.events;
+            queue.trigger_listeners(&input_ev, obj, map);         
         }
     
     }

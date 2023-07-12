@@ -1,6 +1,6 @@
 use std::{
     io::{self, Stdout},
-    time::Duration, collections::HashMap, hash::Hash,
+    time::Duration, collections::{HashMap, HashSet}, hash::Hash,
 };
 
 use anyhow::Ok;
@@ -11,7 +11,7 @@ use ratatui::{widgets::Paragraph, layout::Rect};
 
 use crossterm::event::{KeyCode};
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GameEventType {
     GAME,
     INPUT
@@ -28,6 +28,61 @@ pub struct GameEvent {
     pub ev_type: GameEventType,
     pub data: String
 }
+
+#[derive(Clone)]
+pub struct GameEventQueue {
+    next_id : u16,
+    listeners: HashMap<u16, fn(&GameEvent, &mut GameObject, &TileMap)>,
+    // attach listeners to event types
+    listener_evs: HashMap<GameEventType, HashSet<u16>>
+}
+
+impl GameEventQueue {
+
+    pub fn new() -> Self {
+        Self {
+            next_id: 0,
+            listeners: HashMap::new(),
+            listener_evs: HashMap::new()
+        }
+    }
+
+    pub fn attach_listener(&mut self, func : fn(&GameEvent, &mut GameObject, &TileMap), listen_for : Vec<GameEventType>) -> u16 {        
+        self.listeners.insert(self.next_id, func);
+        
+        for to_listen in listen_for {
+            if !self.listener_evs.contains_key(&to_listen) {
+                self.listener_evs.insert(to_listen, HashSet::new());
+            }
+            match self.listener_evs.get_mut(&to_listen) {
+                None => panic!("Listener for this ev type doesn't exist."),
+                Some(o) => {
+                    o.insert(self.next_id);
+                    ()
+                }
+            }
+        }
+        
+        self.next_id += 1;
+        return self.next_id - 1;
+    }
+
+    pub fn trigger_listeners(&mut self, ev: &GameEvent, caller: &mut GameObject, map: &TileMap) {
+        let to_trigger: &mut HashSet<u16>;
+        let type_of = ev.ev_type;
+        match self.listener_evs.get_mut(&type_of) {
+            None => return,
+            Some(o) => {to_trigger = o} 
+        }
+        for id in to_trigger.iter() {
+            match self.listeners.get(id) {
+                None => panic!("Listeners by type and by index out of sync."),
+                Some(o) => o(ev, caller, map)
+            }
+        }
+    }
+}
+
 pub struct GameState {
     name: String,
     objects: HashMap<String, GameObject>
@@ -37,7 +92,8 @@ pub struct GameState {
 pub struct GameObject {
     pub position: (u16, u16),
     pub glyph: char,
-    pub listeners: HashMap<GameEventType, fn(&GameEvent, &mut GameObject, &TileMap)>
+    pub events: GameEventQueue
+    // pub listeners: HashMap<GameEventType, fn(&GameEvent, &mut GameObject, &TileMap)>
 }
 
 impl GameObject {
