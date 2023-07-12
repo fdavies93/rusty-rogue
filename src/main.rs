@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, Error};
-use game::{GameObject, TileMap, TileType};
-use ratatui::{backend::CrosstermBackend, widgets::Paragraph, Terminal, layout::Rect};
+use game::{GameObject, TileMap, TileType, GameEventType, GameEvent, InputData};
+use ratatui::{backend::CrosstermBackend, widgets::{Paragraph, canvas::Map}, Terminal, layout::Rect};
 use std::{
     io::{self, Stdout},
     time::Duration, collections::HashMap,
@@ -11,6 +11,8 @@ use crossterm::{
 
 mod rterm;
 mod game;
+
+use game::player_move;
 
 /// This is a bare minimum example. There are many approaches to running an application loop, so
 /// this is not meant to be prescriptive. It is only meant to demonstrate the basic setup and
@@ -23,7 +25,10 @@ mod game;
 fn main() -> Result<()> {
     let mut player = GameObject {
         position: (1,1),
-        glyph: '@'
+        glyph: '@',
+        listeners: HashMap::from([
+            ( GameEventType::INPUT, player_move as fn(&GameEvent, &mut GameObject, &TileMap) )
+        ])
     };
     let mut terminal = rterm::setup_terminal().context("setup failed")?;
     let mut objs = HashMap::from([
@@ -35,8 +40,10 @@ fn main() -> Result<()> {
     let mut map = TileMap::new( (15,15) );
     map.draw_rect(&Rect { x: 0, y: 0, width: 15, height: 15 }, TileType::WALL, false);
     map.draw_rect(&Rect { x: 6, y: 6, width: 3, height: 3 }, TileType::WALL, true);
+    
     run(&mut terminal, &mut objs, &map).context("app loop failed")?;
     rterm::restore_terminal(&mut terminal).context("restore terminal failed")?;
+    
     Ok(())
 }
 
@@ -46,33 +53,25 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, objects : &mut Has
     loop {
         terminal.draw(rterm::assemble_render(objects, map))?;
         let key = rterm::poll()?;
+        let input_ev = GameEvent {
+            ev_type: GameEventType::INPUT,
+            data: serde_json::to_string( &InputData {
+                key_code: key
+            })?
+        };
 
-        let mut playerObj: &mut GameObject;
-        match objects.get_mut("player") {
-            None => panic!("Couldn't find player object."),
-            Some(player) => playerObj = player
+        if key == KeyCode::Esc { break }
+        for obj in objects.values_mut() {
+            let mut input_fn: &fn(&GameEvent, &mut GameObject, &TileMap);
+            
+            match obj.listeners.get(&GameEventType::INPUT) {
+                None => continue,
+                Some(f) => input_fn = f
+            };
+            
+            input_fn(&input_ev, obj, map)
         }
-        let mut destination = playerObj.position;
-
-        if key == KeyCode::Esc {
-            break;
-        }
-        else if key == KeyCode::Left || key == KeyCode::Char('a') {
-            destination.0 -= 1
-        }
-        else if key == KeyCode::Right || key == KeyCode::Char('d') {
-            destination.0 += 1
-        }
-        else if key == KeyCode::Up || key == KeyCode::Char('w') {
-            destination.1 -= 1
-        }
-        else if key == KeyCode::Down || key == KeyCode::Char('s') {
-            destination.1 += 1
-        }
-        
-        if map.tile_at(destination) == TileType::FLOOR {
-            playerObj.position = destination;
-        }
+    
     }
     Ok(())
 }

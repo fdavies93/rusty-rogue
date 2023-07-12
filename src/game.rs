@@ -1,19 +1,43 @@
 use std::{
     io::{self, Stdout},
-    time::Duration, collections::HashMap,
+    time::Duration, collections::HashMap, hash::Hash,
 };
 
-use ratatui::{widgets::Paragraph as Paragraph, layout::Rect};
+use anyhow::Ok;
+use serde::{Serialize, Deserialize};
+use serde_json::Result;
 
+use ratatui::{widgets::Paragraph, layout::Rect};
+
+use crossterm::event::{KeyCode};
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub enum GameEventType {
+    GAME,
+    INPUT
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct InputData {
+    pub key_code: KeyCode
+}
+
+#[derive(Clone)]
+// data is a JSON-encoded representation
+pub struct GameEvent {
+    pub ev_type: GameEventType,
+    pub data: String
+}
 pub struct GameState {
     name: String,
     objects: HashMap<String, GameObject>
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone)]
 pub struct GameObject {
     pub position: (u16, u16),
-    pub glyph: char
+    pub glyph: char,
+    pub listeners: HashMap<GameEventType, fn(&GameEvent, &mut GameObject, &TileMap)>
 }
 
 impl GameObject {
@@ -89,4 +113,30 @@ impl TileMap {
         }
     }
 
+}
+
+pub fn player_move(ev : &GameEvent, obj : &mut GameObject, map : &TileMap) {
+    let data: InputData = serde_json::from_str(ev.data.as_str()).unwrap();
+    let key = data.key_code;
+
+    let mut destination = obj.position;
+
+    if key == KeyCode::Left || key == KeyCode::Char('a') {
+        destination.0 -= 1
+    }
+    else if key == KeyCode::Right || key == KeyCode::Char('d') {
+        destination.0 += 1
+    }
+    else if key == KeyCode::Up || key == KeyCode::Char('w') {
+        destination.1 -= 1
+    }
+    else if key == KeyCode::Down || key == KeyCode::Char('s') {
+        destination.1 += 1
+    }
+
+    if map.tile_at(destination) == TileType::FLOOR {
+        obj.position = destination;
+    }
+
+    return
 }
