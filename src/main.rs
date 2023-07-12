@@ -57,16 +57,16 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, objects : &mut Has
         if key == KeyCode::Esc {
             break;
         }
-        else if key == KeyCode::Left {
+        else if key == KeyCode::Left || key == KeyCode::Char('a') {
             destination.0 -= 1
         }
-        else if key == KeyCode::Right {
+        else if key == KeyCode::Right || key == KeyCode::Char('d') {
             destination.0 += 1
         }
-        else if key == KeyCode::Up {
+        else if key == KeyCode::Up || key == KeyCode::Char('w') {
             destination.1 -= 1
         }
-        else if key == KeyCode::Down {
+        else if key == KeyCode::Down || key == KeyCode::Char('s') {
             destination.1 += 1
         }
         
