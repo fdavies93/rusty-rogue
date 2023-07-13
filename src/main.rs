@@ -24,14 +24,22 @@ use game::player_move;
 /// presses 'q'.
 fn main() -> Result<()> {
     let mut player = GameObject {
+        id: "player".to_string(),
         position: (1,1),
-        glyph: '@',
-        events: GameEventQueue::new()
+        glyph: '@'
     };
     let mut terminal = rterm::setup_terminal().context("setup failed")?;
     let mut objs = HashMap::from([
         ("player".to_string(), player),
     ]);
+    let mut player_queue = GameEventQueue::new();
+    
+    player_queue.attach_listener(game::player_move, vec![GameEventType::INPUT]);
+    
+    let mut events = HashMap::from([
+        ("player".to_string(), player_queue)
+    ]);
+
     // ratatui handles text overflowing the buffer by truncating it - good
     // translating from world -> camera space should therefore be sufficient
     // for rendering to succeed even on large maps
@@ -39,14 +47,14 @@ fn main() -> Result<()> {
     map.draw_rect(&Rect { x: 0, y: 0, width: 15, height: 15 }, TileType::WALL, false);
     map.draw_rect(&Rect { x: 6, y: 6, width: 3, height: 3 }, TileType::WALL, true);
     
-    run(&mut terminal, &mut objs, &map).context("app loop failed")?;
+    run(&mut terminal, &mut objs, &mut events, &map).context("app loop failed")?;
     rterm::restore_terminal(&mut terminal).context("restore terminal failed")?;
-    
+
     Ok(())
 }
 
 // Render and poll terminal for keypress events
-pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, objects : &mut HashMap<String, GameObject>, map : &TileMap) -> Result<()> {
+pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, objects : &mut HashMap<String, GameObject>, events: &mut HashMap<String, GameEventQueue>, map : &TileMap) -> Result<()> {
     
     loop {
         terminal.draw(rterm::assemble_render(objects, map))?;
@@ -60,7 +68,10 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, objects : &mut Has
 
         if key == KeyCode::Esc { break }
         for obj in objects.values_mut() {
-            let queue = &mut obj.events;
+            let queue = match events.get_mut(&obj.id) {
+                None => continue,
+                Some(o) => o
+            };
             queue.trigger_listeners(&input_ev, obj, map);         
         }
     

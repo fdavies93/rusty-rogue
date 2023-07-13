@@ -90,9 +90,9 @@ pub struct GameState {
 
 #[derive(Clone)]
 pub struct GameObject {
+    pub id: String,
     pub position: (u16, u16),
-    pub glyph: char,
-    pub events: GameEventQueue
+    pub glyph: char
     // pub listeners: HashMap<GameEventType, fn(&GameEvent, &mut GameObject, &TileMap)>
 }
 
@@ -100,7 +100,20 @@ impl GameObject {
     pub fn to_text(&self) -> Paragraph {
         Paragraph::new(self.glyph.to_string())
     }
+
 }
+
+// pub struct GameManager {
+//     pub event_queues : HashMap<String, GameEventQueue>
+// }
+
+// impl GameManager {
+//     pub fn new() -> GameManager {
+//         return Self {
+//             event_queues: HashMap::new()
+//         };
+//     }
+// }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum TileType {
