@@ -7,7 +7,7 @@ use anyhow::Ok;
 use serde::{Serialize, Deserialize};
 use serde_json::Result;
 
-use ratatui::{widgets::Paragraph, layout::Rect};
+use ratatui::{widgets::{Paragraph, List}, layout::Rect};
 
 use crossterm::event::{KeyCode};
 
@@ -22,19 +22,49 @@ pub struct InputData {
     pub key_code: KeyCode
 }
 
+
+// A Component represents any component of a GameObject.
+pub struct Component {
+    pub obj_id: String,
+    // A serialisable struct e.g. TileMap, Camera
+    pub data: String
+}
+
 #[derive(Clone)]
 // data is a JSON-encoded representation
 pub struct GameEvent {
-    pub ev_type: GameEventType,
+    pub ev_type: String,
     pub data: String
+}
+
+#[derive(Clone)]
+pub struct Listener {
+    pub id: u16,
+    // use ev_type to deliver system events
+    // e.g. game.close, input.remap
+    pub listen_for: Vec<String>,
+    pub subject_id: u16,
+    pub to_trigger: fn(&mut GameManager, &GameEvent)
+}
+
+impl Listener {
+pub fn new (listen_for: Vec<String>, subject_id: u16, to_trigger: fn(&mut GameManager, &GameEvent)) -> Self {
+        Self {
+            id: 0,
+            listen_for,
+            subject_id,
+            to_trigger
+        }
+    }
 }
 
 #[derive(Clone)]
 pub struct GameEventQueue {
     next_id : u16,
-    listeners: HashMap<u16, fn(&GameEvent, &mut GameObject, &TileMap)>,
-    // attach listeners to event types
-    listener_evs: HashMap<GameEventType, HashSet<u16>>
+    // hash id of listener against listener function
+    listeners: HashMap<u16, Listener>,
+    // hash event types against listener ids
+    listener_evs: HashMap<String, HashSet<u16>>
 }
 
 impl GameEventQueue {
@@ -47,10 +77,11 @@ impl GameEventQueue {
         }
     }
 
-    pub fn attach_listener(&mut self, func : fn(&GameEvent, &mut GameObject, &TileMap), listen_for : Vec<GameEventType>) -> u16 {        
-        self.listeners.insert(self.next_id, func);
+    pub fn attach_listener(&mut self, mut to_attach : Listener) -> u16 {   
+        to_attach.id = self.next_id;
+        self.listeners.insert(self.next_id, to_attach);
         
-        for to_listen in listen_for {
+        for to_listen in to_attach.listen_for {
             if !self.listener_evs.contains_key(&to_listen) {
                 self.listener_evs.insert(to_listen, HashSet::new());
             }
@@ -67,7 +98,7 @@ impl GameEventQueue {
         return self.next_id - 1;
     }
 
-    pub fn trigger_listeners(&mut self, ev: &GameEvent, caller: &mut GameObject, map: &TileMap) {
+    pub fn trigger_listeners(&mut self, game: &mut GameManager, ev: &GameEvent) {
         let to_trigger: &mut HashSet<u16>;
         let type_of = ev.ev_type;
         match self.listener_evs.get_mut(&type_of) {
@@ -77,7 +108,7 @@ impl GameEventQueue {
         for id in to_trigger.iter() {
             match self.listeners.get(id) {
                 None => panic!("Listeners by type and by index out of sync."),
-                Some(o) => o(ev, caller, map)
+                Some(o) => (o.to_trigger)(game, ev)
             }
         }
     }
@@ -103,25 +134,48 @@ impl GameObject {
 
 }
 
-// pub struct GameManager {
-//     pub event_queues : HashMap<String, GameEventQueue>
-// }
+// all event queues are stored by *object*, which seems wrong
+pub struct GameManager {
+    event_queues : HashMap<String, GameEventQueue>,
+    pub objects : HashMap<String, GameObject>,
+    pub components : HashMap<String, Component>
+}
 
-// impl GameManager {
-//     pub fn new() -> GameManager {
-//         return Self {
-//             event_queues: HashMap::new()
-//         };
-//     }
-// }
+impl GameManager {
+    pub fn new() -> GameManager {
+        return Self {
+            event_queues: HashMap::new(),
+            objects: HashMap::new(),
+            components: HashMap::new()
+        };
+    }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+    fn add_event_queue(&mut self, obj_id: String) -> &mut GameEventQueue {
+        let eq = GameEventQueue::new();
+        self.event_queues.insert(obj_id.clone(), eq);
+        match self.event_queues.get_mut(&obj_id) {
+            None => panic!("Insert of new value failed somehow."),
+            Some(eq) => eq
+        }
+    }
+
+    fn add_listener(&mut self, obj_id: String, f: fn(&mut GameManager, &GameEvent, &mut GameObject), listen_for: Vec<GameEventType>) { 
+        let eq = match self.event_queues.get_mut(&obj_id) {
+            None => self.add_event_queue(obj_id),
+            Some(q) => q
+        };
+        // eq.attach_listener(f, listen_for);
+    }
+
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TileType {
     FLOOR,
     WALL
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct TileMap {
     tiles: Vec<Vec<TileType>>,
     size: (u16, u16)

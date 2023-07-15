@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, Error};
-use game::{GameObject, TileMap, TileType, GameEventType, GameEvent, InputData, GameEventQueue};
+use game::{GameObject, TileMap, TileType, GameEventType, GameEvent, InputData, GameEventQueue, GameManager, Listener};
 use ratatui::{backend::CrosstermBackend, widgets::{Paragraph, canvas::Map}, Terminal, layout::Rect};
 use std::{
     io::{self, Stdout},
@@ -23,22 +23,30 @@ use game::player_move;
 /// events or update the application state. It just draws a greeting and exits when the user
 /// presses 'q'.
 fn main() -> Result<()> {
+    let mut terminal = rterm::setup_terminal().context("setup failed")?;
+    
     let mut player = GameObject {
         id: "player".to_string(),
         position: (1,1),
         glyph: '@'
     };
-    let mut terminal = rterm::setup_terminal().context("setup failed")?;
+    
     let mut objs = HashMap::from([
         ("player".to_string(), player),
     ]);
-    let mut player_queue = GameEventQueue::new();
+    let mut ev_queue = GameEventQueue::new();
     
+    let mut player_input_listener = Listener::new(vec!["input.key_press".to_string()], 0, game::player_move);
+    ev_queue.attach_listener();
+
     player_queue.attach_listener(game::player_move, vec![GameEventType::INPUT]);
     
-    let mut events = HashMap::from([
-        ("player".to_string(), player_queue)
-    ]);
+    // let mut events = HashMap::from([
+    //     ("player".to_string(), player_queue)
+    // ]);
+
+    let mut game = GameManager::new();
+    
 
     // ratatui handles text overflowing the buffer by truncating it - good
     // translating from world -> camera space should therefore be sufficient
