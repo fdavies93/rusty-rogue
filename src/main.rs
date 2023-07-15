@@ -1,9 +1,9 @@
 use anyhow::{Context, Result, Error};
-use game::{GameObject, TileMap, TileType, GameEventType, GameEvent, InputData, GameEventQueue, GameManager, Listener};
+use game::{GameObject, TileMap, TileType, GameEventType, GameEvent, InputData, GameEventQueue, GameManager, Listener, Component};
 use ratatui::{backend::CrosstermBackend, widgets::{Paragraph, canvas::Map}, Terminal, layout::Rect};
 use std::{
     io::{self, Stdout},
-    time::Duration, collections::HashMap,
+    time::Duration, collections::HashMap, str::FromStr,
 };
 use crossterm::{
     event::{self, Event, KeyCode},
@@ -25,28 +25,15 @@ use game::player_move;
 fn main() -> Result<()> {
     let mut terminal = rterm::setup_terminal().context("setup failed")?;
     
-    let mut player = GameObject {
-        id: "player".to_string(),
-        position: (1,1),
+    let mut player_pos = game::WorldPosition {
+        x: 1,
+        y: 1,
+        map: 0
+    };
+
+    let mut player_glyph = game::Glyph {
         glyph: '@'
     };
-    
-    let mut objs = HashMap::from([
-        ("player".to_string(), player),
-    ]);
-    let mut ev_queue = GameEventQueue::new();
-    
-    let mut player_input_listener = Listener::new(vec!["input.key_press".to_string()], 0, game::player_move);
-    ev_queue.attach_listener();
-
-    player_queue.attach_listener(game::player_move, vec![GameEventType::INPUT]);
-    
-    // let mut events = HashMap::from([
-    //     ("player".to_string(), player_queue)
-    // ]);
-
-    let mut game = GameManager::new();
-    
 
     // ratatui handles text overflowing the buffer by truncating it - good
     // translating from world -> camera space should therefore be sufficient
@@ -54,34 +41,42 @@ fn main() -> Result<()> {
     let mut map = TileMap::new( (15,15) );
     map.draw_rect(&Rect { x: 0, y: 0, width: 15, height: 15 }, TileType::WALL, false);
     map.draw_rect(&Rect { x: 6, y: 6, width: 3, height: 3 }, TileType::WALL, true);
+
+    // ev_queue.attach_listener(player_input_listener);
+
+    let mut game = GameManager::new();
+
+    game.add_component_from_data(&player_pos, "player");
+    game.add_component_from_data(&player_glyph, "player");
+    game.add_component_from_data(&map, "map");
     
-    run(&mut terminal, &mut objs, &mut events, &map).context("app loop failed")?;
+    // let mut player_input_listener = Listener::new(vec!["input.key_press".to_string()], 0, game::player_move);
+
+    // let mut input_listener = Listener::new(vec!["input.key_press".to_string()], subject_id, to_trigger)
+
+    // game.add_listener(to_attach)
+
+    run(&mut terminal, game).context("app loop failed")?;
     rterm::restore_terminal(&mut terminal).context("restore terminal failed")?;
 
     Ok(())
 }
 
 // Render and poll terminal for keypress events
-pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, objects : &mut HashMap<String, GameObject>, events: &mut HashMap<String, GameEventQueue>, map : &TileMap) -> Result<()> {
+pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, game : GameManager) -> Result<()> {
     
     loop {
-        terminal.draw(rterm::assemble_render(objects, map))?;
+        terminal.draw(rterm::assemble_render(game))?;
         let key = rterm::poll()?;
         let input_ev = GameEvent {
-            ev_type: GameEventType::INPUT,
+            ev_type: "input.key_press".to_string(),
             data: serde_json::to_string( &InputData {
                 key_code: key
             })?
         };
 
         if key == KeyCode::Esc { break }
-        for obj in objects.values_mut() {
-            let queue = match events.get_mut(&obj.id) {
-                None => continue,
-                Some(o) => o
-            };
-            queue.trigger_listeners(&input_ev, obj, map);         
-        }
+        game.trigger_listeners(&input_ev)
     
     }
     Ok(())

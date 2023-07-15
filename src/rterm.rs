@@ -18,7 +18,7 @@ use ratatui::{
     text::{Line, Span}
 };
 
-use crate::game::{GameObject, TileMap, TileType};
+use crate::game::{TileMap, TileType, GameEventQueue, GameManager, Glyph, WorldPosition};
 
 /// Setup the terminal. This is where you would enable raw mode, enter the alternate screen, and
 /// hide the cursor. This example does not handle errors. A more robust application would probably
@@ -39,9 +39,16 @@ pub fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Re
     terminal.show_cursor().context("unable to show cursor")
 }
 
-pub fn assemble_render(objects : &mut HashMap<String, GameObject>, map : &TileMap) -> Box<dyn Fn(&mut Frame<CrosstermBackend<Stdout>>)> {
-    let objs : HashMap<String, GameObject> = objects.clone();
-    let map : TileMap = map.clone();
+pub fn assemble_render(game : &mut GameManager) -> Box<dyn FnMut(&mut Frame<CrosstermBackend<Stdout>>)> {
+    // let objs : HashMap<String, GameObject> = objects.clone();
+    // let map : TileMap = map.clone();
+
+    let glyphs = game.get_components_by_type_mut("Glyph").unwrap();
+    let mut glyphy: Vec<Glyph> = vec![];
+    
+    let maps = game.get_components_by_type_mut("TileMap").unwrap();
+    let map: TileMap = serde_json::from_str(&maps[0].data.as_str()).unwrap();
+    
     let closure = move |frame : &mut Frame<CrosstermBackend<Stdout>>| {
 
         let map_size = map.get_size();
@@ -64,17 +71,23 @@ pub fn assemble_render(objects : &mut HashMap<String, GameObject>, map : &TileMa
         let grid = Paragraph::new(text);
         frame.render_widget(grid, frame.size());
 
-        for iter in objs.iter() {
+        for glyph in glyphs.iter_mut() {
+
+            let pos = game.get_components_by_obj_and_type_mut("Position", &glyph.obj_id).unwrap()[0];
+            let pos: WorldPosition = serde_json::from_str(pos.data.as_str()).unwrap();
+
+            let glyph_data: Glyph = serde_json::from_str(glyph.data.as_str()).unwrap();
 
             let render_at = Rect {
-                x: iter.1.position.0,
-                y: iter.1.position.1,
+                x: pos.x,
+                y: pos.y,
                 width: 1,
                 height: 1
             };
 
-            frame.render_widget(iter.1.to_text(), render_at);
+            let paragraph = Paragraph::new(glyph_data.glyph.to_string());
 
+            frame.render_widget(paragraph, render_at);
         }
     };
     

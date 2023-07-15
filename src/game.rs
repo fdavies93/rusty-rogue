@@ -1,6 +1,6 @@
 use std::{
     io::{self, Stdout},
-    time::Duration, collections::{HashMap, HashSet}, hash::Hash,
+    time::Duration, collections::{HashMap, HashSet}, hash::Hash, str::FromStr,
 };
 
 use anyhow::Ok;
@@ -11,12 +11,6 @@ use ratatui::{widgets::{Paragraph, List}, layout::Rect};
 
 use crossterm::event::{KeyCode};
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub enum GameEventType {
-    GAME,
-    INPUT
-}
-
 #[derive(Serialize, Deserialize)]
 pub struct InputData {
     pub key_code: KeyCode
@@ -25,9 +19,130 @@ pub struct InputData {
 
 // A Component represents any component of a GameObject.
 pub struct Component {
+    pub id: u16,
     pub obj_id: String,
     // A serialisable struct e.g. TileMap, Camera
-    pub data: String
+    pub data: String,
+    pub c_type: String
+}
+
+impl Component {
+    pub fn new(obj_id: String) -> Self {
+        Self {
+            id: 0,
+            obj_id,
+            data: String::new(),
+            c_type: String::new()
+        }
+    }
+
+    pub fn set_data(&mut self, item: &(impl IsComponent + Serialize)) {
+        self.c_type = item.get_type_name();
+        self.data = serde_json::to_string(item).unwrap();
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct TileMap {
+    tiles: Vec<Vec<TileType>>,
+    size: (u16, u16)
+}
+
+impl IsComponent for TileMap {
+    fn get_type_name(&self) -> String {
+        String::from_str("TileMap").unwrap()
+    }
+}
+
+impl TileMap {
+    pub fn new(size : (u16, u16)) -> Self {
+        Self {
+            tiles: TileMap::instantiate_map(size),
+            size: size
+        }
+    }
+
+    pub fn instantiate_map ( size : (u16, u16) ) -> Vec<Vec<TileType>> {
+        let mut tiles = Vec::new();
+
+        for x in 0..size.0 {
+
+            tiles.push(Vec::new());
+
+            for _y in 0..size.1 {
+
+                tiles[usize::from(x)].push(TileType::FLOOR);
+            }
+        }
+
+        return tiles;
+    }
+
+    pub fn tile_at(&self, pos : (u16, u16)) -> TileType {
+        return self.tiles[usize::from(pos.0)][usize::from(pos.1)];
+    }
+
+    pub fn get_size(&self) -> (u16, u16) {
+        return self.size;
+    }
+
+    pub fn to_rect(&self) -> Rect {
+        Rect { x: 0, y: 0, width: self.size.0, height: self.size.1 }
+    }
+
+    pub fn draw_rect(&mut self, pos: &Rect, tile: TileType, filled: bool) {
+        // remove anything out of bounds of tilemap
+        let real_pos = self.to_rect().intersection(*pos);
+
+        for x in real_pos.left()..pos.right() {
+            for y in real_pos.top()..pos.bottom() {
+                if filled || (!filled && (
+                    (x+1 == real_pos.right()) || 
+                    (x == real_pos.left()) ||
+                    (y+1 == real_pos.bottom()) ||
+                    (y == real_pos.top())
+                )) {
+                    self.tiles[usize::from(x)][usize::from(y)] = tile
+                }
+            }
+        }
+    }
+
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct WorldPosition {
+    pub x: u16,
+    pub y: u16,
+    // this one is the id of the tilemap component
+    pub map: u16 
+}
+
+impl IsComponent for WorldPosition {
+    fn get_type_name(&self) -> String {
+        String::from_str("Glyph").unwrap()
+    }
+}
+
+impl WorldPosition {
+    pub fn as_tuple_2(&self) -> (u16, u16) {
+        (self.x, self.y)
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Glyph {
+    pub glyph: char
+}
+
+impl IsComponent for Glyph {
+    fn get_type_name(&self) -> String {
+        String::from_str("Glyph").unwrap()
+    }
+}
+
+pub trait IsComponent {
+    fn get_type_name(&self) -> String;
 }
 
 #[derive(Clone)]
@@ -44,11 +159,11 @@ pub struct Listener {
     // e.g. game.close, input.remap
     pub listen_for: Vec<String>,
     pub subject_id: u16,
-    pub to_trigger: fn(&mut GameManager, &GameEvent)
+    pub to_trigger: fn(&mut GameManager, &GameEvent, &Listener)
 }
 
 impl Listener {
-pub fn new (listen_for: Vec<String>, subject_id: u16, to_trigger: fn(&mut GameManager, &GameEvent)) -> Self {
+pub fn new (listen_for: Vec<String>, subject_id: u16, to_trigger: fn(&mut GameManager, &GameEvent, &Listener)) -> Self {
         Self {
             id: 0,
             listen_for,
@@ -108,7 +223,7 @@ impl GameEventQueue {
         for id in to_trigger.iter() {
             match self.listeners.get(id) {
                 None => panic!("Listeners by type and by index out of sync."),
-                Some(o) => (o.to_trigger)(game, ev)
+                Some(o) => (o.to_trigger)(game, ev, o)
             }
         }
     }
@@ -116,55 +231,119 @@ impl GameEventQueue {
 
 pub struct GameState {
     name: String,
-    objects: HashMap<String, GameObject>
-}
-
-#[derive(Clone)]
-pub struct GameObject {
-    pub id: String,
-    pub position: (u16, u16),
-    pub glyph: char
-    // pub listeners: HashMap<GameEventType, fn(&GameEvent, &mut GameObject, &TileMap)>
-}
-
-impl GameObject {
-    pub fn to_text(&self) -> Paragraph {
-        Paragraph::new(self.glyph.to_string())
-    }
-
 }
 
 // all event queues are stored by *object*, which seems wrong
 pub struct GameManager {
-    event_queues : HashMap<String, GameEventQueue>,
-    pub objects : HashMap<String, GameObject>,
-    pub components : HashMap<String, Component>
+    next_id: u16,
+    event_queue : GameEventQueue,
+    components : HashMap<u16, Component>,
+    components_by_type : HashMap<String, HashSet<u16>>,
+    components_by_obj : HashMap<String, HashSet<u16>>
 }
 
 impl GameManager {
     pub fn new() -> GameManager {
         return Self {
-            event_queues: HashMap::new(),
-            objects: HashMap::new(),
-            components: HashMap::new()
+            next_id: 0,
+            event_queue: GameEventQueue::new(),
+            components: HashMap::new(),
+            components_by_obj: HashMap::new(),
+            components_by_type: HashMap::new()
         };
     }
 
-    fn add_event_queue(&mut self, obj_id: String) -> &mut GameEventQueue {
-        let eq = GameEventQueue::new();
-        self.event_queues.insert(obj_id.clone(), eq);
-        match self.event_queues.get_mut(&obj_id) {
-            None => panic!("Insert of new value failed somehow."),
-            Some(eq) => eq
+    pub fn add_listener(&mut self, mut to_attach: Listener) { 
+        self.event_queue.attach_listener(to_attach);
+    }
+
+    pub fn trigger_listeners(&mut self, ev: &GameEvent) {
+        self.event_queue.trigger_listeners(self, ev);
+    }
+
+    pub fn add_component(&mut self, component: Component) -> u16 {
+        self.components.insert(self.next_id, component);
+        // add id to hashset if hashset exists, else create it
+        let set = match self.components_by_obj.get(&component.obj_id) {
+            None => {
+                self.components_by_obj.insert(component.obj_id, HashSet::new());
+                self.components_by_obj.get(&component.obj_id).unwrap()
+            }
+            Some(o) => o
+        };
+        set.insert(self.next_id);
+
+        let set = match self.components_by_type.get(&component.c_type) {
+            None => {
+                self.components_by_type.insert(component.c_type, HashSet::new());
+                self.components_by_type.get(&component.c_type).unwrap()
+            }
+            Some(o) => o
+        };
+        set.insert(self.next_id);
+
+        // add 
+        self.next_id += 1;
+        self.next_id -1
+    }
+
+    pub fn add_component_from_data(&mut self, datum: &(impl IsComponent + Serialize), obj_id: &str) -> u16 {
+        let mut comp = Component::new(obj_id.to_string());
+        comp.set_data(datum);
+        self.add_component(comp)
+    }
+
+    pub fn get_component_mut(&self, id: u16) -> Option<&mut Component> {
+        self.components.get_mut(&id)
+    }
+
+    pub fn get_components_by_obj_mut(&self, obj: &str) -> Option<Vec<&mut Component>> {
+        match self.components_by_obj.get(obj) {
+            None => Option::None,
+            Some(ids) => {
+                let mut components: Vec<&mut Component> = vec![];
+                for id in ids {
+                    // we want this to panic on fail because it means
+                    // the indexes have gone out of sync
+                    components.push(self.components.get_mut(id).unwrap());
+                }
+                Option::Some(components)
+            }
         }
     }
 
-    fn add_listener(&mut self, obj_id: String, f: fn(&mut GameManager, &GameEvent, &mut GameObject), listen_for: Vec<GameEventType>) { 
-        let eq = match self.event_queues.get_mut(&obj_id) {
-            None => self.add_event_queue(obj_id),
-            Some(q) => q
-        };
-        // eq.attach_listener(f, listen_for);
+    pub fn get_components_by_type_mut(&self, c_type: &str) -> Option<Vec<&mut Component>> {
+        match self.components_by_type.get(c_type) {
+            None => Option::None,
+            Some(ids) => {
+                let mut components: Vec<&mut Component> = vec![];
+                for id in ids {
+                    // we want this to panic on fail because it means
+                    // the indexes have gone out of sync
+                    components.push(self.components.get_mut(id).unwrap());
+                }
+                Option::Some(components)
+            }
+        }
+    }
+
+    pub fn get_components_by_obj_and_type_mut(&self, c_type: &str, obj: &str) -> Option<Vec<&mut Component>> {
+        let by_type = self.components_by_type.get(c_type);
+        let by_obj = self.components_by_obj.get(obj);
+        if by_type.is_none() || by_obj.is_none() {
+            Option::None
+        }
+        else {
+            let by_type = by_type.unwrap();
+            let by_obj = by_obj.unwrap();
+            let mut union: Vec<&mut Component> = vec![];
+            for id in by_type.union(by_obj) {
+                // we want this to panic on fail because it means
+                // the indexes have gone out of sync
+                union.push(self.components.get_mut(id).unwrap())
+            }
+            Option::Some(union)
+        }
     }
 
 }
@@ -175,90 +354,36 @@ pub enum TileType {
     WALL
 }
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct TileMap {
-    tiles: Vec<Vec<TileType>>,
-    size: (u16, u16)
-}
 
-
-impl TileMap {
-    pub fn new(size : (u16, u16)) -> Self {
-        Self {
-            tiles: TileMap::instantiate_map(size),
-            size: size
-        }
-    }
-
-    pub fn instantiate_map ( size : (u16, u16) ) -> Vec<Vec<TileType>> {
-        let mut tiles = Vec::new();
-
-        for x in 0..size.0 {
-
-            tiles.push(Vec::new());
-
-            for _y in 0..size.1 {
-
-                tiles[usize::from(x)].push(TileType::FLOOR);
-            }
-        }
-
-        return tiles;
-    }
-
-    pub fn tile_at(&self, pos : (u16, u16)) -> TileType {
-        return self.tiles[usize::from(pos.0)][usize::from(pos.1)];
-    }
-
-    pub fn get_size(&self) -> (u16, u16) {
-        return self.size;
-    }
-
-    pub fn to_rect(&self) -> Rect {
-        Rect { x: 0, y: 0, width: self.size.0, height: self.size.1 }
-    }
-
-    pub fn draw_rect(&mut self, pos: &Rect, tile: TileType, filled: bool) {
-        // remove anything out of bounds of tilemap
-        let real_pos = self.to_rect().intersection(*pos);
-
-        for x in real_pos.left()..pos.right() {
-            for y in real_pos.top()..pos.bottom() {
-                if filled || (!filled && (
-                    (x+1 == real_pos.right()) || 
-                    (x == real_pos.left()) ||
-                    (y+1 == real_pos.bottom()) ||
-                    (y == real_pos.top())
-                )) {
-                    self.tiles[usize::from(x)][usize::from(y)] = tile
-                }
-            }
-        }
-    }
-
-}
-
-pub fn player_move(ev : &GameEvent, obj : &mut GameObject, map : &TileMap) {
+pub fn player_move(game: &mut GameManager, ev : &GameEvent, listener : &Listener) {
     let data: InputData = serde_json::from_str(ev.data.as_str()).unwrap();
     let key = data.key_code;
 
-    let mut destination = obj.position;
+    let mut component = match game.get_component_mut(listener.subject_id) {
+        None => panic!("Listener mismatch with component."),
+        Some(c) => c
+    };
+
+    let mut position: WorldPosition = serde_json::from_str(component.data.as_str()).unwrap();
 
     if key == KeyCode::Left || key == KeyCode::Char('a') {
-        destination.0 -= 1
+        position.x -= 1
     }
     else if key == KeyCode::Right || key == KeyCode::Char('d') {
-        destination.0 += 1
+        position.x += 1
     }
     else if key == KeyCode::Up || key == KeyCode::Char('w') {
-        destination.1 -= 1
+        position.y -= 1
     }
     else if key == KeyCode::Down || key == KeyCode::Char('s') {
-        destination.1 += 1
+        position.y += 1
     }
 
-    if map.tile_at(destination) == TileType::FLOOR {
-        obj.position = destination;
+    let mut world: TileMap = serde_json::from_str(game.get_component_mut(position.map).unwrap().data.as_str()).unwrap();
+
+    if world.tile_at(position.as_tuple_2()) == TileType::FLOOR {
+        // allow move
+        component.data = serde_json::to_string(&position).unwrap();
     }
 
     return
