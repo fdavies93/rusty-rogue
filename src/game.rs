@@ -195,12 +195,13 @@ impl GameEventQueue {
     pub fn attach_listener(&mut self, mut to_attach : Listener) -> u16 {   
         to_attach.id = self.next_id;
         self.listeners.insert(self.next_id, to_attach);
+        let listen_for = &self.listeners.get(&self.next_id).unwrap().listen_for;
         
-        for to_listen in to_attach.listen_for {
-            if !self.listener_evs.contains_key(&to_listen) {
-                self.listener_evs.insert(to_listen, HashSet::new());
+        for to_listen in listen_for {
+            if !self.listener_evs.contains_key(to_listen) {
+                self.listener_evs.insert(to_listen.clone(), HashSet::new());
             }
-            match self.listener_evs.get_mut(&to_listen) {
+            match self.listener_evs.get_mut(to_listen) {
                 None => panic!("Listener for this ev type doesn't exist."),
                 Some(o) => {
                     o.insert(self.next_id);
@@ -215,8 +216,8 @@ impl GameEventQueue {
 
     pub fn trigger_listeners(&mut self, game: &mut GameManager, ev: &GameEvent) {
         let to_trigger: &mut HashSet<u16>;
-        let type_of = ev.ev_type;
-        match self.listener_evs.get_mut(&type_of) {
+        let type_of = &ev.ev_type;
+        match self.listener_evs.get_mut(type_of) {
             None => return,
             Some(o) => {to_trigger = o} 
         }

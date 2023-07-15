@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, Error};
-use game::{GameObject, TileMap, TileType, GameEventType, GameEvent, InputData, GameEventQueue, GameManager, Listener, Component};
+use game::{TileMap, TileType, GameEvent, InputData, GameEventQueue, GameManager, Listener, Component};
 use ratatui::{backend::CrosstermBackend, widgets::{Paragraph, canvas::Map}, Terminal, layout::Rect};
 use std::{
     io::{self, Stdout},
@@ -56,14 +56,14 @@ fn main() -> Result<()> {
 
     // game.add_listener(to_attach)
 
-    run(&mut terminal, game).context("app loop failed")?;
+    run(&mut terminal, &mut game).context("app loop failed")?;
     rterm::restore_terminal(&mut terminal).context("restore terminal failed")?;
 
     Ok(())
 }
 
 // Render and poll terminal for keypress events
-pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, game : GameManager) -> Result<()> {
+pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, game : &mut GameManager) -> Result<()> {
     
     loop {
         terminal.draw(rterm::assemble_render(game))?;

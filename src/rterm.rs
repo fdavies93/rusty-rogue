@@ -43,7 +43,7 @@ pub fn assemble_render(game : &mut GameManager) -> Box<dyn FnMut(&mut Frame<Cros
     // let objs : HashMap<String, GameObject> = objects.clone();
     // let map : TileMap = map.clone();
 
-    let glyphs = game.get_components_by_type_mut("Glyph").unwrap();
+    let mut glyphs = game.get_components_by_type_mut("Glyph").unwrap();
     let mut glyphy: Vec<Glyph> = vec![];
     
     let maps = game.get_components_by_type_mut("TileMap").unwrap();
