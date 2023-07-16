@@ -419,12 +419,26 @@ pub fn player_move(game: &mut GameManager, ev : &GameEvent, listener : &Listener
         serde_json::from_str(comp.data.as_str()).unwrap()
     };
 
+    {
+        let positions = game.get_components_by_type_mut("WorldPosition").unwrap();
+        for comp in positions {
+            let cur_pos: WorldPosition = serde_json::from_str(comp.data.as_str()).unwrap();
+            if cur_pos.x == position.x && cur_pos.y == position.y {
+                // disallow move
+                return
+            }
+        }        
+    }
+
     let mut components = game.get_components("WorldPosition", &listener.object_id).unwrap();
 
-    if world.tile_at(position.as_tuple_2()) == TileType::FLOOR {
-        // allow movement
-        components[0].data = serde_json::to_string(&position).unwrap();
+    if world.tile_at(position.as_tuple_2()) != TileType::FLOOR {
+        // disallow movement
+        return
     }
+
+    // finally move
+    components[0].data = serde_json::to_string(&position).unwrap();
 
     return
 }
