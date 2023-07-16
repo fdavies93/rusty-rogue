@@ -60,11 +60,13 @@ fn main() -> Result<()> {
     game.add_component_from_data(&enemy_glyph, "enemy");
     game.add_component_from_data(&enemy_pos, "enemy");
 
-    // game.add_listener(listener);
-
     let mut eq = GameEventQueue::new();
 
-    let lis = Listener::new(vec![String::from_str("input.key_press").unwrap()], "player", game::player_move);
+    let lis = Listener::new(
+        vec![String::from_str("input.key_press").unwrap()], 
+        "player", 
+        game::player_move
+    );
 
     eq.attach_listener(lis);
 
