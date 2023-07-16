@@ -20,6 +20,16 @@ use ratatui::{
 
 use crate::game::{TileMap, TileType, GameEventQueue, GameManager, Glyph, WorldPosition};
 
+pub fn clamp(val: u16, min: u16, max: u16) -> u16 {
+    if val < min {
+        return min;
+    }
+    if val > max {
+        return max;
+    }
+    val
+}
+
 /// Setup the terminal. This is where you would enable raw mode, enter the alternate screen, and
 /// hide the cursor. This example does not handle errors. A more robust application would probably
 /// want to handle errors and ensure that the terminal is restored to a sane state before exiting.
@@ -105,11 +115,22 @@ pub fn assemble_render(game : &mut GameManager) -> Box<dyn FnMut(&mut Frame<Cros
         ))
     }
 
-    // make closure only output paragraphs, not perform operations leading to them
     let closure = move |frame : &mut Frame<CrosstermBackend<Stdout>>| {
 
+        // add logic for outputting objects in correct place
+
         for widget in &mut widgets {
-            frame.render_widget(widget.0.clone(),widget.1);
+            let f = frame.size();
+            let r_x = clamp(widget.1.x, 0, f.right());
+            let r_y = clamp(widget.1.y, 0, f.bottom());
+            let r = Rect{
+                x: r_x,
+                y: r_y,
+                width: clamp(widget.1.width, 0, f.right() - r_x),
+                height: clamp(widget.1.height, 0, f.bottom() - r_y)
+            };
+
+            frame.render_widget(widget.0.clone(),r);
         }
         
     };
