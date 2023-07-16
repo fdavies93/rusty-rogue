@@ -159,16 +159,16 @@ pub struct Listener {
     // use ev_type to deliver system events
     // e.g. game.close, input.remap
     pub listen_for: Vec<String>,
-    pub subject_id: u16,
+    pub object_id: String,
     pub to_trigger: fn(&mut GameManager, &GameEvent, &Listener)
 }
 
 impl Listener {
-pub fn new (listen_for: Vec<String>, subject_id: u16, to_trigger: fn(&mut GameManager, &GameEvent, &Listener)) -> Self {
+pub fn new (listen_for: Vec<String>, object_id: &str, to_trigger: fn(&mut GameManager, &GameEvent, &Listener)) -> Self {
         Self {
             id: 0,
             listen_for,
-            subject_id,
+            object_id: String::from_str(object_id).unwrap(),
             to_trigger
         }
     }
@@ -238,7 +238,7 @@ pub struct GameState {
 // all event queues are stored by *object*, which seems wrong
 pub struct GameManager {
     next_id: u16,
-    event_queue : GameEventQueue,
+    // event_queue : GameEventQueue,
     components : HashMap<u16, Component>,
     components_by_type : HashMap<String, HashSet<u16>>,
     components_by_obj : HashMap<String, HashSet<u16>>
@@ -248,22 +248,26 @@ impl GameManager {
     pub fn new() -> GameManager {
         return Self {
             next_id: 0,
-            event_queue: GameEventQueue::new(),
+            // event_queue: GameEventQueue::new(),
             components: HashMap::new(),
             components_by_obj: HashMap::new(),
             components_by_type: HashMap::new()
         };
     }
 
-    pub fn add_listener(&mut self, mut to_attach: Listener) { 
-        self.event_queue.attach_listener(to_attach);
-    }
+    // pub fn add_listener(&mut self, mut to_attach: Listener) { 
+    //     self.event_queue.attach_listener(to_attach);
+    // }
 
-    pub fn trigger_listeners(&self, ev: &GameEvent) {
-        // this is difficult to work around without changing signature of
-        // trigger_listeners
-        //self.event_queue.trigger_listeners(self, ev);
-    }
+    // pub fn trigger_listeners(&mut self, ev: &GameEvent) {
+    //     // this is difficult to work around without changing signature of
+    //     // trigger_listeners
+    //     let eq = {
+    //         &mut self.event_queue
+    //     };
+
+    //     eq.trigger_listeners(self, ev);
+    // }
 
     pub fn add_component(&mut self, component: Component) -> u16 {
     
@@ -357,7 +361,7 @@ impl GameManager {
         }
     }
 
-    pub fn get_components_by_obj_and_type_mut(&mut self, c_type: &str, obj: &str) -> Option<Vec<&mut Component>> {
+    pub fn get_components(&mut self, c_type: &str, obj: &str) -> Option<Vec<&mut Component>> {
         let by_type = self.components_by_type.get(c_type);
         let by_obj = self.components_by_obj.get(obj);
         if by_type.is_none() || by_obj.is_none() {
@@ -392,8 +396,8 @@ pub fn player_move(game: &mut GameManager, ev : &GameEvent, listener : &Listener
     let key = data.key_code;
 
     let mut position: WorldPosition = {
-        let component = game.get_component_mut(listener.subject_id).unwrap();
-        serde_json::from_str(component.data.as_str()).unwrap()
+        let components = game.get_components("WorldPosition", &listener.object_id).unwrap();
+        serde_json::from_str(components[0].data.as_str()).unwrap()
     };
 
     if key == KeyCode::Left || key == KeyCode::Char('a') {
@@ -410,14 +414,16 @@ pub fn player_move(game: &mut GameManager, ev : &GameEvent, listener : &Listener
     }
 
     let world: TileMap = {
-        serde_json::from_str(game.get_component_mut(position.map).unwrap().data.as_str()).unwrap()
+        let comps = &game.get_components_by_type_mut("TileMap").unwrap();
+        let comp = &comps[0];
+        serde_json::from_str(comp.data.as_str()).unwrap()
     };
 
-    let component: &mut Component = game.get_component_mut(listener.subject_id).unwrap();
+    let mut components = game.get_components("WorldPosition", &listener.object_id).unwrap();
 
     if world.tile_at(position.as_tuple_2()) == TileType::FLOOR {
         // allow movement
-        component.data = serde_json::to_string(&position).unwrap();
+        components[0].data = serde_json::to_string(&position).unwrap();
     }
 
     return

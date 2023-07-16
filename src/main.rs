@@ -35,6 +35,16 @@ fn main() -> Result<()> {
         glyph: '@'
     };
 
+    let mut enemy_pos = game::WorldPosition {
+        x: 10,
+        y: 10,
+        map: 0
+    };
+
+    let mut enemy_glyph = game::Glyph {
+        glyph: 'M'
+    };
+
     // ratatui handles text overflowing the buffer by truncating it - good
     // translating from world -> camera space should therefore be sufficient
     // for rendering to succeed even on large maps
@@ -47,18 +57,25 @@ fn main() -> Result<()> {
     game.add_component_from_data(&player_pos, "player");
     game.add_component_from_data(&player_glyph, "player");
     game.add_component_from_data(&map, "map");
+    game.add_component_from_data(&enemy_glyph, "enemy");
+    game.add_component_from_data(&enemy_pos, "enemy");
 
     // game.add_listener(listener);
 
-    run(&mut terminal, &mut game).context("app loop failed")?;
+    let mut eq = GameEventQueue::new();
+
+    let lis = Listener::new(vec![String::from_str("input.key_press").unwrap()], "player", game::player_move);
+
+    eq.attach_listener(lis);
+
+    run(&mut terminal, &mut game, &mut eq).context("app loop failed")?;
     rterm::restore_terminal(&mut terminal).context("restore terminal failed")?;
 
     Ok(())
 }
 
 // Render and poll terminal for keypress events
-pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, game : &mut GameManager) -> Result<()> {
-    
+pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, game : &mut GameManager, eq : &mut GameEventQueue) -> Result<()> {
     loop {
         terminal.draw(rterm::assemble_render(game))?;
         let key = rterm::poll()?;
@@ -70,7 +87,7 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, game : &mut GameMa
         };
 
         if key == KeyCode::Esc { break }
-        game.trigger_listeners(&input_ev)
+        eq.trigger_listeners(game, &input_ev)
     
     }
     Ok(())

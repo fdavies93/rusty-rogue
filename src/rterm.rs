@@ -67,7 +67,7 @@ pub fn assemble_render(game : &mut GameManager) -> Box<dyn FnMut(&mut Frame<Cros
     let mut glyph_positions = {
         let mut glyph_pos = vec![];
         for glyph in glyphs {
-            let comp = &game.get_components_by_obj_and_type_mut("WorldPosition", &glyph.0).unwrap()[0];       
+            let comp = &game.get_components("WorldPosition", &glyph.0).unwrap()[0];       
             let pos_data: WorldPosition = serde_json::from_str(comp.data.as_str()).unwrap();
             glyph_pos.push((pos_data, glyph.1));
         }
