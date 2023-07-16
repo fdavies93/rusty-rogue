@@ -11,7 +11,7 @@ use crossterm::{
 };
 use ratatui::{
     backend::CrosstermBackend, 
-    widgets::Paragraph, 
+    widgets::{Paragraph, Widget, self}, 
     Terminal, 
     Frame,
     layout::Rect,
@@ -43,53 +43,75 @@ pub fn assemble_render(game : &mut GameManager) -> Box<dyn FnMut(&mut Frame<Cros
     // let objs : HashMap<String, GameObject> = objects.clone();
     // let map : TileMap = map.clone();
 
-    let mut glyphs = game.get_components_by_type_mut("Glyph").unwrap();
-    let mut glyphy: Vec<Glyph> = vec![];
-    
-    let maps = game.get_components_by_type_mut("TileMap").unwrap();
-    let map: TileMap = serde_json::from_str(&maps[0].data.as_str()).unwrap();
-    
-    // make closure only output paragraphs
-    let closure = move |frame : &mut Frame<CrosstermBackend<Stdout>>| {
+    let mut widgets: Vec<(Paragraph, Rect)> = vec![];
 
-        let map_size = map.get_size();
-        let mut text = vec![];
-         
-        for y in 0..map_size.1 {
-            let mut line = "".to_string(); 
-            for x in 0..map_size.0 {
-                let glyph = map.tile_at((x,y));
-
-                let ch = match glyph {
-                    TileType::FLOOR => '.',
-                    TileType::WALL => '█'
-                };
-
-                line.push(ch);
-            }
-            text.push(Line::from(line));
+    let mut glyphs = {
+        let mut glyphy: Vec<(String, Glyph)> = vec![];
+        let glyph_comps = game.get_components_by_type_mut("Glyph").unwrap();
+        for comp in glyph_comps {
+            glyphy.push( (comp.obj_id.clone(), serde_json::from_str(comp.data.as_str()).unwrap()) )
         }
-        let grid = Paragraph::new(text);
-        frame.render_widget(grid, frame.size());
+        glyphy
+    };
 
-        for glyph in glyphs.iter_mut() {
+    let mut glyph_positions = {
+        let mut glyph_pos = vec![];
+        for glyph in glyphs {
+            let comp = &mut game.get_components_by_obj_and_type_mut("WorldPosition", &glyph.0).unwrap()[0];
+            let pos_data: WorldPosition = serde_json::from_str(comp.data.as_str()).unwrap();
+            
+            glyph_pos.push((pos_data, glyph.1));
+        }
+        glyph_pos
+    };
 
-            let pos = &game.get_components_by_obj_and_type_mut("Position", &glyph.obj_id).unwrap()[0];
-            let pos: WorldPosition = serde_json::from_str(pos.data.as_str()).unwrap();
+    for pos_glyph in glyph_positions {
+        widgets.push((
+            Paragraph::new(pos_glyph.1.glyph.to_string()),
+            Rect::new(pos_glyph.0.x, pos_glyph.0.y, 1, 1)
+        ))
+    }
 
-            let glyph_data: Glyph = serde_json::from_str(glyph.data.as_str()).unwrap();
+    let map: TileMap = 
+    {
+        let maps = game.get_components_by_type_mut("TileMap").unwrap();
+        serde_json::from_str(&maps[0].data.as_str()).unwrap()
+    };
 
-            let render_at = Rect {
-                x: pos.x,
-                y: pos.y,
-                width: 1,
-                height: 1
+    let map_size = map.get_size();
+    let mut text = vec![];
+
+    
+        
+    for y in 0..map_size.1 {
+        let mut line = "".to_string(); 
+        for x in 0..map_size.0 {
+            let glyph = map.tile_at((x,y));
+
+            let ch = match glyph {
+                TileType::FLOOR => '.',
+                TileType::WALL => '█'
             };
 
-            let paragraph = Paragraph::new(glyph_data.glyph.to_string());
-
-            frame.render_widget(paragraph, render_at);
+            line.push(ch);
         }
+        text.push(Line::from(line));
+    }
+    let mut grid = Paragraph::new(text);
+    widgets.push((grid, Rect {
+        x: 0,
+        y: 0,
+        width: map_size.0,
+        height: map_size.1
+    }));
+
+    // make closure only output paragraphs, not perform operations leading to them
+    let closure = move |frame : &mut Frame<CrosstermBackend<Stdout>>| {
+
+        for widget in &mut widgets {
+            frame.render_widget(widget.0.clone(),widget.1);
+        }
+        
     };
     
     Box::new(closure)

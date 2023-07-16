@@ -42,19 +42,13 @@ fn main() -> Result<()> {
     map.draw_rect(&Rect { x: 0, y: 0, width: 15, height: 15 }, TileType::WALL, false);
     map.draw_rect(&Rect { x: 6, y: 6, width: 3, height: 3 }, TileType::WALL, true);
 
-    // ev_queue.attach_listener(player_input_listener);
-
     let mut game = GameManager::new();
 
     game.add_component_from_data(&player_pos, "player");
     game.add_component_from_data(&player_glyph, "player");
     game.add_component_from_data(&map, "map");
-    
-    // let mut player_input_listener = Listener::new(vec!["input.key_press".to_string()], 0, game::player_move);
 
-    // let mut input_listener = Listener::new(vec!["input.key_press".to_string()], subject_id, to_trigger)
-
-    // game.add_listener(to_attach)
+    // game.add_listener(listener);
 
     run(&mut terminal, &mut game).context("app loop failed")?;
     rterm::restore_terminal(&mut terminal).context("restore terminal failed")?;
