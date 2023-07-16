@@ -121,7 +121,7 @@ pub struct WorldPosition {
 
 impl IsComponent for WorldPosition {
     fn get_type_name(&self) -> String {
-        String::from_str("Glyph").unwrap()
+        String::from_str("WorldPosition").unwrap()
     }
 }
 
@@ -290,7 +290,7 @@ impl GameManager {
 
         // add 
         self.next_id += 1;
-        self.next_id -1
+        self.next_id - 1
     }
 
     pub fn add_component_from_data(&mut self, datum: &(impl IsComponent + Serialize), obj_id: &str) -> u16 {
@@ -367,13 +367,13 @@ impl GameManager {
             let by_type = by_type.unwrap();
             let by_obj = by_obj.unwrap();
             let mut union: Vec<*mut Component> = vec![];
-            for id in by_type.union(by_obj) {
+            for id in by_type.intersection(by_obj) {
                 // we want this to panic on fail because it means
                 // the indexes have gone out of sync
                 union.push(self.components.get_mut(id).unwrap())
             }
             // very bad and literally unsafe, high priority to refactor
-            let union = union.into_iter().map(|ptr| unsafe { &mut *ptr } ).collect();
+            let union: Vec<&mut Component> = union.into_iter().map(|ptr| unsafe { &mut *ptr } ).collect();
             Option::Some(union)
         }
     }

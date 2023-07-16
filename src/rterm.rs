@@ -57,20 +57,12 @@ pub fn assemble_render(game : &mut GameManager) -> Box<dyn FnMut(&mut Frame<Cros
     let mut glyph_positions = {
         let mut glyph_pos = vec![];
         for glyph in glyphs {
-            let comp = &mut game.get_components_by_obj_and_type_mut("WorldPosition", &glyph.0).unwrap()[0];
+            let comp = &game.get_components_by_obj_and_type_mut("WorldPosition", &glyph.0).unwrap()[0];       
             let pos_data: WorldPosition = serde_json::from_str(comp.data.as_str()).unwrap();
-            
             glyph_pos.push((pos_data, glyph.1));
         }
         glyph_pos
     };
-
-    for pos_glyph in glyph_positions {
-        widgets.push((
-            Paragraph::new(pos_glyph.1.glyph.to_string()),
-            Rect::new(pos_glyph.0.x, pos_glyph.0.y, 1, 1)
-        ))
-    }
 
     let map: TileMap = 
     {
@@ -79,9 +71,7 @@ pub fn assemble_render(game : &mut GameManager) -> Box<dyn FnMut(&mut Frame<Cros
     };
 
     let map_size = map.get_size();
-    let mut text = vec![];
-
-    
+    let mut text = vec![];    
         
     for y in 0..map_size.1 {
         let mut line = "".to_string(); 
@@ -97,13 +87,23 @@ pub fn assemble_render(game : &mut GameManager) -> Box<dyn FnMut(&mut Frame<Cros
         }
         text.push(Line::from(line));
     }
-    let mut grid = Paragraph::new(text);
+
+    // render map
+    let grid = Paragraph::new(text);
     widgets.push((grid, Rect {
         x: 0,
         y: 0,
         width: map_size.0,
         height: map_size.1
     }));
+
+    // render map objects
+    for pos_glyph in glyph_positions {
+        widgets.push((
+            Paragraph::new(pos_glyph.1.glyph.to_string()),
+            Rect::new(pos_glyph.0.x, pos_glyph.0.y, 1, 1)
+        ))
+    }
 
     // make closure only output paragraphs, not perform operations leading to them
     let closure = move |frame : &mut Frame<CrosstermBackend<Stdout>>| {
