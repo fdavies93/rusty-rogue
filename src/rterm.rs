@@ -49,6 +49,7 @@ pub fn assemble_render(game : &mut GameManager) -> Box<dyn FnMut(&mut Frame<Cros
     let maps = game.get_components_by_type_mut("TileMap").unwrap();
     let map: TileMap = serde_json::from_str(&maps[0].data.as_str()).unwrap();
     
+    // make closure only output paragraphs
     let closure = move |frame : &mut Frame<CrosstermBackend<Stdout>>| {
 
         let map_size = map.get_size();
@@ -73,7 +74,7 @@ pub fn assemble_render(game : &mut GameManager) -> Box<dyn FnMut(&mut Frame<Cros
 
         for glyph in glyphs.iter_mut() {
 
-            let pos = game.get_components_by_obj_and_type_mut("Position", &glyph.obj_id).unwrap()[0];
+            let pos = &game.get_components_by_obj_and_type_mut("Position", &glyph.obj_id).unwrap()[0];
             let pos: WorldPosition = serde_json::from_str(pos.data.as_str()).unwrap();
 
             let glyph_data: Glyph = serde_json::from_str(glyph.data.as_str()).unwrap();
