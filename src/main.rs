@@ -2,8 +2,8 @@ use anyhow::{Context, Result, Error};
 
 use game::GameManager;
 use events::{GameEvent, Listener, GameEventQueue, InputData};
-use Components::{WorldPosition::WorldPosition, Glyph::Glyph, TileMap::{TileMap, TileType}};
-use Scripts::player_move;
+use components::{WorldPosition, Glyph, TileMap, TileType, Health};
+use scripts::{player_move, on_hit};
 
 use ratatui::{backend::CrosstermBackend, widgets::{Paragraph, canvas::Map}, Terminal, layout::Rect};
 use std::{
@@ -16,9 +16,9 @@ use crossterm::{
 
 mod rterm;
 mod game;
-mod Components;
+mod components;
 mod events;
-mod Scripts;
+mod scripts;
 
 /// This is a bare minimum example. There are many approaches to running an application loop, so
 /// this is not meant to be prescriptive. It is only meant to demonstrate the basic setup and
@@ -31,24 +31,29 @@ mod Scripts;
 fn main() -> Result<()> {
     let mut terminal = rterm::setup_terminal().context("setup failed")?;
     
-    let mut player_pos = WorldPosition {
+    let player_pos = WorldPosition {
         x: 1,
         y: 1,
         map: 0
     };
 
-    let mut player_glyph = Glyph {
+    let player_glyph = Glyph {
         glyph: '@'
     };
 
-    let mut enemy_pos = WorldPosition {
+    let enemy_pos = WorldPosition {
         x: 10,
         y: 10,
         map: 0
     };
 
-    let mut enemy_glyph = Glyph {
+    let enemy_glyph = Glyph {
         glyph: 'M'
+    };
+
+    let enemy_health = Health {
+        current_health: 10,
+        max_health: 10,
     };
 
     // ratatui handles text overflowing the buffer by truncating it - good
@@ -65,16 +70,24 @@ fn main() -> Result<()> {
     game.add_component_from_data(&map, "map");
     game.add_component_from_data(&enemy_glyph, "enemy");
     game.add_component_from_data(&enemy_pos, "enemy");
+    game.add_component_from_data(&enemy_health, "enemy");
 
     let mut eq = GameEventQueue::new();
 
-    let lis = Listener::new(
+    let input_listener = Listener::new(
         vec![String::from_str("input.key_press").unwrap()], 
         "player", 
         player_move
     );
 
-    eq.attach_listener(lis);
+    let hit_listener = Listener::new(
+        vec![String::from_str("game.hit").unwrap()],
+        "enemy",
+        on_hit
+    );
+
+    
+    eq.attach_listener(input_listener);
 
     run(&mut terminal, &mut game, &mut eq).context("app loop failed")?;
     rterm::restore_terminal(&mut terminal).context("restore terminal failed")?;
@@ -84,6 +97,12 @@ fn main() -> Result<()> {
 
 // Render and poll terminal for keypress events
 pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, game : &mut GameManager, eq : &mut GameEventQueue) -> Result<()> {
+    let start_ev = GameEvent {
+        ev_type: "game.start".to_string(),
+        data: "".to_string()
+    };
+    eq.trigger_listeners(game, &start_ev);
+ 
     loop {
         terminal.draw(rterm::assemble_render(game))?;
         let key = rterm::poll()?;

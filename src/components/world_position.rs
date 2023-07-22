@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize};
-use crate::Components::Component::IsComponent;
+use crate::components::IsComponent;
 use std::str::FromStr;
 
 #[derive(Serialize, Deserialize)]

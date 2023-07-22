@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use serde::Serialize;
-use crate::Components::Component::{Component, IsComponent};
+use crate::components::{Component, IsComponent};
 use crate::events::GameEvent;
 
 // all event queues are stored by *object*, which seems wrong
