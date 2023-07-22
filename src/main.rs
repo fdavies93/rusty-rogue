@@ -1,5 +1,10 @@
 use anyhow::{Context, Result, Error};
-use game::{TileMap, TileType, GameEvent, InputData, GameEventQueue, GameManager, Listener, Component};
+
+use game::GameManager;
+use events::{GameEvent, Listener, GameEventQueue, InputData};
+use Components::{WorldPosition::WorldPosition, Glyph::Glyph, TileMap::{TileMap, TileType}};
+use Scripts::player_move;
+
 use ratatui::{backend::CrosstermBackend, widgets::{Paragraph, canvas::Map}, Terminal, layout::Rect};
 use std::{
     io::{self, Stdout},
@@ -11,8 +16,9 @@ use crossterm::{
 
 mod rterm;
 mod game;
-
-use game::player_move;
+mod Components;
+mod events;
+mod Scripts;
 
 /// This is a bare minimum example. There are many approaches to running an application loop, so
 /// this is not meant to be prescriptive. It is only meant to demonstrate the basic setup and
@@ -25,23 +31,23 @@ use game::player_move;
 fn main() -> Result<()> {
     let mut terminal = rterm::setup_terminal().context("setup failed")?;
     
-    let mut player_pos = game::WorldPosition {
+    let mut player_pos = WorldPosition {
         x: 1,
         y: 1,
         map: 0
     };
 
-    let mut player_glyph = game::Glyph {
+    let mut player_glyph = Glyph {
         glyph: '@'
     };
 
-    let mut enemy_pos = game::WorldPosition {
+    let mut enemy_pos = WorldPosition {
         x: 10,
         y: 10,
         map: 0
     };
 
-    let mut enemy_glyph = game::Glyph {
+    let mut enemy_glyph = Glyph {
         glyph: 'M'
     };
 
@@ -65,7 +71,7 @@ fn main() -> Result<()> {
     let lis = Listener::new(
         vec![String::from_str("input.key_press").unwrap()], 
         "player", 
-        game::player_move
+        player_move
     );
 
     eq.attach_listener(lis);

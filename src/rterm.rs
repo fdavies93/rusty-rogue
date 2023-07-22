@@ -15,10 +15,11 @@ use ratatui::{
     Terminal, 
     Frame,
     layout::Rect,
-    text::{Line, Span}
+    text::{Line}
 };
 
-use crate::game::{TileMap, TileType, GameEventQueue, GameManager, Glyph, WorldPosition};
+use crate::Components::{Glyph::Glyph, TileMap::{TileMap, TileType}, WorldPosition::WorldPosition};
+use crate::game::GameManager;
 
 pub fn clamp(val: u16, min: u16, max: u16) -> u16 {
     if val < min {
