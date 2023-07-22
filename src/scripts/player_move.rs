@@ -3,7 +3,7 @@ use crate::events::{GameEvent, Listener, InputData};
 use crossterm::event::KeyCode;
 use crate::components::{WorldPosition, TileMap, TileType};
 
-pub fn player_move(game: &mut GameManager, ev : &GameEvent, listener : &Listener) {
+pub fn player_move(game: &mut GameManager, ev : &GameEvent, listener : &Listener) -> Vec<GameEvent> {
     let data: InputData = serde_json::from_str(ev.data.as_str()).unwrap();
     let key = data.key_code;
 
@@ -38,7 +38,7 @@ pub fn player_move(game: &mut GameManager, ev : &GameEvent, listener : &Listener
             if cur_pos.x == position.x && cur_pos.y == position.y {
                 // disallow move
                 
-                return
+                return vec![]
             }
         }        
     }
@@ -47,11 +47,11 @@ pub fn player_move(game: &mut GameManager, ev : &GameEvent, listener : &Listener
 
     if world.tile_at(position.as_tuple_2()) != TileType::FLOOR {
         // disallow movement
-        return
+        return vec![]
     }
 
     // finally move
     components[0].data = serde_json::to_string(&position).unwrap();
 
-    return
+    return vec![]
 }

@@ -101,7 +101,7 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, game : &mut GameMa
         ev_type: "game.start".to_string(),
         data: "".to_string()
     };
-    eq.trigger_listeners(game, &start_ev);
+    eq.trigger_listeners(game, start_ev);
  
     loop {
         terminal.draw(rterm::assemble_render(game))?;
@@ -114,8 +114,8 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, game : &mut GameMa
         };
 
         if key == KeyCode::Esc { break }
-        eq.trigger_listeners(game, &input_ev)
-    
+        eq.trigger_listeners(game, input_ev);
+        
     }
     Ok(())
 }

@@ -23,11 +23,11 @@ pub struct Listener {
     // e.g. game.close, input.remap
     pub listen_for: Vec<String>,
     pub object_id: String,
-    pub to_trigger: fn(&mut GameManager, &GameEvent, &Listener)
+    pub to_trigger: fn(&mut GameManager, &GameEvent, &Listener) -> Vec<GameEvent>
 }
 
 impl Listener {
-pub fn new (listen_for: Vec<String>, object_id: &str, to_trigger: fn(&mut GameManager, &GameEvent, &Listener)) -> Self {
+pub fn new (listen_for: Vec<String>, object_id: &str, to_trigger: fn(&mut GameManager, &GameEvent, &Listener) -> Vec<GameEvent>) -> Self {
         Self {
             id: 0,
             listen_for,
@@ -78,18 +78,28 @@ impl GameEventQueue {
         return self.next_id - 1;
     }
 
-    pub fn trigger_listeners(&mut self, game: &mut GameManager, ev: &GameEvent) {
-        let to_trigger: &mut HashSet<u16>;
-        let type_of = &ev.ev_type;
-        match self.listener_evs.get_mut(type_of) {
-            None => return,
-            Some(o) => {to_trigger = o} 
-        }
-        for id in to_trigger.iter() {
-            match self.listeners.get(id) {
-                None => panic!("Listeners by type and by index out of sync."),
-                Some(o) => (o.to_trigger)(game, ev, o)
+    pub fn trigger_listeners(&mut self, game: &mut GameManager, initial_ev: GameEvent) {
+        let mut evs = vec![initial_ev];
+
+        while evs.len() > 0 {
+
+            let ev = evs.pop().unwrap();
+
+            let to_trigger: &mut HashSet<u16>;
+            let type_of = &ev.ev_type;
+            match self.listener_evs.get_mut(type_of) {
+                None => return,
+                Some(o) => {to_trigger = o} 
             }
+            for id in to_trigger.iter() {
+                let mut callbacks : Vec<GameEvent> = match self.listeners.get(id) {
+                    None => panic!("Listeners by type and by index out of sync."),
+                    Some(o) => (o.to_trigger)(game, &ev, o)
+                };
+                evs.append(&mut callbacks);
+            };
         }
+
+        
     }
 }
