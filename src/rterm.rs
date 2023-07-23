@@ -18,7 +18,7 @@ use ratatui::{
     text::{Line}
 };
 
-use crate::components::{Glyph, TileMap, TileType, WorldPosition};
+use crate::components::{Glyph, TileMap, TileType, ScreenPosition, WorldPosition, TextBox};
 use crate::game::GameManager;
 
 pub fn clamp(val: u16, min: u16, max: u16) -> u16 {
@@ -105,6 +105,31 @@ pub fn assemble_render(game : &mut GameManager) -> Box<dyn FnMut(&mut Frame<Cros
         text.push(Line::from(line));
     }
 
+    let text_boxes = {
+        let mut texty: Vec<(String, TextBox)> = vec![];
+        let text_comps = game.get_components_by_type_mut("TextBox").unwrap();
+        for comp in text_comps {
+            texty.push( (comp.obj_id.clone(), serde_json::from_str(comp.data.as_str()).unwrap()) )
+        }
+        texty
+    };
+
+    let mut text_positions = {
+        let mut text_pos = vec![];
+        for tb in text_boxes {
+            let comp_option = &game.get_components("ScreenPosition", &tb.0);
+            let comps = match comp_option {
+                None => continue,
+                Some(c) => c
+            };
+            if comps.len() == 0 { continue }
+            let comp = &comps[0];
+            let pos_data: ScreenPosition = serde_json::from_str(comp.data.as_str()).unwrap();
+            text_pos.push((pos_data, tb.1));
+        }
+        text_pos
+    };
+
     // render map
     let grid = Paragraph::new(text);
     widgets.push((grid, Rect {
@@ -120,6 +145,15 @@ pub fn assemble_render(game : &mut GameManager) -> Box<dyn FnMut(&mut Frame<Cros
             Paragraph::new(pos_glyph.1.glyph.to_string()),
             Rect::new(pos_glyph.0.x, pos_glyph.0.y, 1, 1)
         ))
+    }
+
+    // render UI elements
+    for pos_text in text_positions {
+        let text_w: u16 = pos_text.1.value.len().try_into().unwrap();
+        widgets.push((
+            Paragraph::new(pos_text.1.value.clone()),
+            Rect::new(pos_text.0.x, pos_text.0.y, text_w, 1)
+        ));
     }
 
     let closure = move |frame : &mut Frame<CrosstermBackend<Stdout>>| {

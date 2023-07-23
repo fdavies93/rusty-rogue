@@ -12,3 +12,14 @@ impl IsComponent for Glyph {
         String::from_str("Glyph").unwrap()
     }
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct TextBox {
+    pub value: String
+}
+
+impl IsComponent for TextBox {
+    fn get_type_name(&self) -> String {
+        String::from_str("TextBox").unwrap()
+    }
+}

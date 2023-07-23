@@ -1,9 +1,9 @@
 use anyhow::{Context, Result, Error};
 
 use game::GameManager;
-use events::{GameEvent, Listener, GameEventQueue, InputData};
-use components::{WorldPosition, Glyph, TileMap, TileType, Health};
-use scripts::{player_move, on_hit};
+use events::{GameEvent, Listener, GameEventQueue, InputData, TickData};
+use components::{WorldPosition, Glyph, TileMap, TileType, Health, HealthMonitor, TextBox, ScreenPosition};
+use scripts::{player_move, on_hit, update_health};
 
 use ratatui::{backend::CrosstermBackend, widgets::{Paragraph, canvas::Map}, Terminal, layout::Rect};
 use std::{
@@ -56,6 +56,19 @@ fn main() -> Result<()> {
         max_health: 10,
     };
 
+    let enemy_health_box = TextBox {
+        value: String::from_str("?/?")?
+    };
+
+    let enemy_health_monitor = HealthMonitor {
+        subject_id: String::from_str("enemy").unwrap()
+    };
+
+    let enemy_health_pos = ScreenPosition {
+        x: 0,
+        y: 0
+    };
+
     // ratatui handles text overflowing the buffer by truncating it - good
     // translating from world -> camera space should therefore be sufficient
     // for rendering to succeed even on large maps
@@ -71,6 +84,9 @@ fn main() -> Result<()> {
     game.add_component_from_data(&enemy_glyph, "enemy");
     game.add_component_from_data(&enemy_pos, "enemy");
     game.add_component_from_data(&enemy_health, "enemy");
+    game.add_component_from_data(&enemy_health_box, "enemy_hb");
+    game.add_component_from_data(&enemy_health_monitor, "enemy_hb");
+    game.add_component_from_data(&enemy_health_pos, "enemy_hb");
 
     let mut eq = GameEventQueue::new();
 
@@ -86,9 +102,15 @@ fn main() -> Result<()> {
         on_hit
     );
 
+    let update_listener = Listener::new(
+        vec![String::from_str("game.tick").unwrap()],
+        "enemy_hb",
+        update_health
+    );
     
     eq.attach_listener(input_listener);
     eq.attach_listener(hit_listener);
+    eq.attach_listener(update_listener);
 
     run(&mut terminal, &mut game, &mut eq).context("app loop failed")?;
     rterm::restore_terminal(&mut terminal).context("restore terminal failed")?;
@@ -98,6 +120,7 @@ fn main() -> Result<()> {
 
 // Render and poll terminal for keypress events
 pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, game : &mut GameManager, eq : &mut GameEventQueue) -> Result<()> {
+    let mut cur_tick: u16 = 0;
     let start_ev = GameEvent {
         ev_type: "game.start".to_string(),
         data: "".to_string()
@@ -113,6 +136,15 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, game : &mut GameMa
                 key_code: key
             })?
         };
+
+        let update_ev = GameEvent {
+            ev_type: "game.tick".to_string(),
+            data: serde_json::to_string( &TickData {
+                tick: cur_tick
+            } )?
+        };
+
+        eq.trigger_listeners(game, update_ev);
 
         if key == KeyCode::Esc { break }
         eq.trigger_listeners(game, input_ev);

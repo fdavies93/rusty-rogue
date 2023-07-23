@@ -15,6 +15,11 @@ pub struct HitData {
     pub target: String
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct TickData {
+    pub tick: u16
+}
+
 #[derive(Clone)]
 // data is a JSON-encoded representation
 pub struct GameEvent {

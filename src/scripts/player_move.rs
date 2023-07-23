@@ -1,7 +1,7 @@
 use crate::game::GameManager;
 use crate::events::{GameEvent, Listener, InputData, HitData};
 use crossterm::event::KeyCode;
-use crate::components::{WorldPosition, TileMap, TileType};
+use crate::components::{WorldPosition, TileMap, TileType, Vector2};
 
 pub fn player_move(game: &mut GameManager, ev : &GameEvent, listener : &Listener) -> Vec<GameEvent> {
     let data: InputData = serde_json::from_str(ev.data.as_str()).unwrap();
