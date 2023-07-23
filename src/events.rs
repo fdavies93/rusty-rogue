@@ -38,10 +38,16 @@ pub struct Listener {
 }
 
 impl Listener {
-pub fn new (listen_for: Vec<String>, object_id: &str, to_trigger: fn(&mut GameManager, &GameEvent, &Listener) -> Vec<GameEvent>) -> Self {
+pub fn new (listen_for: Vec<&str>, object_id: &str, to_trigger: fn(&mut GameManager, &GameEvent, &Listener) -> Vec<GameEvent>) -> Self {
+        let mut lf: Vec<String> = vec![];
+
+        for a in listen_for {
+            lf.push(String::from_str(a).unwrap());
+        }
+
         Self {
             id: 0,
-            listen_for,
+            listen_for: lf,
             object_id: String::from_str(object_id).unwrap(),
             to_trigger
         }
@@ -101,7 +107,7 @@ impl GameEventQueue {
             }
 
             let to_trigger: &mut HashSet<u16>;
-            let type_of = &ev.ev_type;
+            let type_of = ev.ev_type.as_str();
             match self.listener_evs.get_mut(type_of) {
                 None => return,
                 Some(o) => {to_trigger = o} 

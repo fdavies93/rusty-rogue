@@ -1,0 +1,5 @@
+- [ ] Refactor common patterns in component fetching to utility functions (probably template functions)
+- [ ] Refactor HealthMonitor to a more generic Monitor component
+- [ ] Consider refactoring overall event system to a true ECS
+- [ ] Give scripts serializable names
+- [ ] Make it possible to save and load game state from / to JSON files

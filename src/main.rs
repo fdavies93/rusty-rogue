@@ -91,19 +91,19 @@ fn main() -> Result<()> {
     let mut eq = GameEventQueue::new();
 
     let input_listener = Listener::new(
-        vec![String::from_str("input.key_press").unwrap()], 
+        vec!["input.key_press"], 
         "player", 
         player_move
     );
 
     let hit_listener = Listener::new(
-        vec![String::from_str("game.on_hit").unwrap()],
+        vec!["game.on_hit"],
         "enemy",
         on_hit
     );
 
     let update_listener = Listener::new(
-        vec![String::from_str("game.tick").unwrap()],
+        vec!["game.tick"],
         "enemy_hb",
         update_health
     );
