@@ -24,8 +24,10 @@ impl GameManager {
         };
     }
 
-    pub fn add_component(&mut self, component: Component) -> u16 {
+    pub fn add_component(&mut self, mut component: Component) -> u16 {
     
+        component.id = self.next_id;
+
         self.components.insert(self.next_id, component);
         let component = &self.components[&self.next_id];
         // add id to hashset if hashset exists, else create it
@@ -127,6 +129,25 @@ impl GameManager {
             // very bad and literally unsafe, high priority to refactor
             let union: Vec<&mut Component> = union.into_iter().map(|ptr| unsafe { &mut *ptr } ).collect();
             Option::Some(union)
+        }
+    }
+
+    pub fn remove_object(&mut self, obj_name : &str) {
+        let components = self.get_components_by_obj_mut(obj_name).unwrap();
+        let mut c_to_remove: HashSet<u16> = HashSet::new();
+
+        for comp in components {
+            c_to_remove.insert(comp.id);
+        }
+
+        self.components_by_obj.remove(obj_name);
+
+        for cid in c_to_remove {
+            self.components.remove(&cid);
+            
+            for set in self.components_by_type.values_mut() {
+                set.remove(&cid);
+            }
         }
     }
 

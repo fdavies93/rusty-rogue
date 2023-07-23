@@ -1,5 +1,5 @@
 use crate::game::GameManager;
-use crate::events::{GameEvent, Listener, InputData};
+use crate::events::{GameEvent, Listener, InputData, HitData};
 use crossterm::event::KeyCode;
 use crate::components::{WorldPosition, TileMap, TileType};
 
@@ -35,10 +35,21 @@ pub fn player_move(game: &mut GameManager, ev : &GameEvent, listener : &Listener
         let positions = game.get_components_by_type_mut("WorldPosition").unwrap();
         for comp in positions {
             let cur_pos: WorldPosition = serde_json::from_str(comp.data.as_str()).unwrap();
-            if cur_pos.x == position.x && cur_pos.y == position.y {
-                // disallow move
-                
-                return vec![]
+            if comp.obj_id != listener.object_id && cur_pos.x == position.x && cur_pos.y == position.y {
+                // disallow move, but trigger an on_hit
+                // println!("hit");
+
+                let hit = GameEvent {
+                    ev_type: "game.on_hit".to_string(),
+                    data: serde_json::to_string(
+                        &HitData {
+                            aggressor: listener.object_id.clone(),
+                            target: comp.obj_id.clone()
+                        }
+                    ).unwrap()
+                };
+
+                return vec![hit]
             }
         }        
     }

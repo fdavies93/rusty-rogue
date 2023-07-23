@@ -81,13 +81,14 @@ fn main() -> Result<()> {
     );
 
     let hit_listener = Listener::new(
-        vec![String::from_str("game.hit").unwrap()],
+        vec![String::from_str("game.on_hit").unwrap()],
         "enemy",
         on_hit
     );
 
     
     eq.attach_listener(input_listener);
+    eq.attach_listener(hit_listener);
 
     run(&mut terminal, &mut game, &mut eq).context("app loop failed")?;
     rterm::restore_terminal(&mut terminal).context("restore terminal failed")?;

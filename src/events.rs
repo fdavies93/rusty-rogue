@@ -9,6 +9,12 @@ pub struct InputData {
     pub key_code: KeyCode
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct HitData {
+    pub aggressor: String,
+    pub target: String
+}
+
 #[derive(Clone)]
 // data is a JSON-encoded representation
 pub struct GameEvent {
@@ -84,6 +90,10 @@ impl GameEventQueue {
         while evs.len() > 0 {
 
             let ev = evs.pop().unwrap();
+
+            if ev.ev_type == "game.remove_object" {
+                game.remove_object(ev.data.as_str());
+            }
 
             let to_trigger: &mut HashSet<u16>;
             let type_of = &ev.ev_type;
