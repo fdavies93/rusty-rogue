@@ -103,7 +103,7 @@ fn main() -> Result<()> {
     );
 
     let update_listener = Listener::new(
-        vec!["game.tick"],
+        vec!["game.on_hit"],
         "enemy_hb",
         update_health
     );

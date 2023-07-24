@@ -1,4 +1,5 @@
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
+use serde::de::DeserializeOwned;
 
 // A Component represents any component of a GameObject.
 pub struct Component {
@@ -22,6 +23,12 @@ impl Component {
     pub fn set_data(&mut self, item: &(impl IsComponent + Serialize)) {
         self.c_type = item.get_type_name();
         self.data = serde_json::to_string(item).unwrap();
+    }
+
+    pub fn extract_data<T>(&mut self) -> T
+    where T: DeserializeOwned + IsComponent,
+    {
+        return serde_json::from_str(self.data.as_str()).unwrap();
     }
 }
 pub trait IsComponent {

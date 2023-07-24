@@ -16,10 +16,8 @@ pub fn on_hit(game: &mut GameManager, ev : &GameEvent, listener : &Listener) -> 
         let comps = game.get_components("Health", &hit_data.target);
         match comps {
             None => return vec![],
-            Some(c) => {
-                serde_json::from_str(c[0].data.as_str()).unwrap()
-            }
-        }  
+            Some(mut c) => c[0].extract_data()
+        }
     };
 
     health.current_health -= 1;
