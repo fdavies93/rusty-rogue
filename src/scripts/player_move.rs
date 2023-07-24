@@ -7,11 +7,8 @@ pub fn player_move(game: &mut GameManager, ev : &GameEvent, listener : &Listener
     let data: InputData = serde_json::from_str(ev.data.as_str()).unwrap();
     let key = data.key_code;
 
-    let mut position: WorldPosition = {
-        let components = game.get_components("WorldPosition", &listener.object_id).unwrap();
-        serde_json::from_str(components[0].data.as_str()).unwrap()
-    };
-
+    let mut position: WorldPosition = game.get_component_data("WorldPosition", &listener.object_id).unwrap();
+    
     if key == KeyCode::Left || key == KeyCode::Char('a') {
         position.x -= 1
     }

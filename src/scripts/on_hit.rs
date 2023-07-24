@@ -12,13 +12,7 @@ pub fn on_hit(game: &mut GameManager, ev : &GameEvent, listener : &Listener) -> 
         return vec![]        
     }
 
-    let mut health: Health = {
-        let comps = game.get_components("Health", &hit_data.target);
-        match comps {
-            None => return vec![],
-            Some(mut c) => c[0].extract_data()
-        }
-    };
+    let mut health: Health = game.get_component_data("Health", &hit_data.target).unwrap();
 
     health.current_health -= 1;
 

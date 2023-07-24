@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use crate::components::{Component, IsComponent};
 use crate::events::GameEvent;
 
@@ -129,6 +130,18 @@ impl GameManager {
             // very bad and literally unsafe, high priority to refactor
             let union: Vec<&mut Component> = union.into_iter().map(|ptr| unsafe { &mut *ptr } ).collect();
             Option::Some(union)
+        }
+    }
+
+    pub fn get_component_data<T>(&mut self, c_type: &str, obj: &str) -> Option<T> 
+    where T: DeserializeOwned + IsComponent, 
+    {
+        let comp_options = self.get_components(c_type, obj);
+        match comp_options {
+            None => return Option::None,
+            Some(mut c) => {
+                Option::Some(c[0].extract_data())
+            }
         }
     }
 

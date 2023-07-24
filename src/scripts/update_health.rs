@@ -9,14 +9,7 @@ pub fn update_health(game: &mut GameManager, ev : &GameEvent, listener : &Listen
     // we don't care about the event as it holds no useful info
     // this should be the component
     
-    let health_monitor : HealthMonitor = {
-        let comps = match game.get_components("HealthMonitor", &listener.object_id) {
-            None => return vec![],
-            Some(c) => c
-        };
-        serde_json::from_str(comps[0].data.as_str()).unwrap()
-    };
-
+    let health_monitor : HealthMonitor = game.get_component_data("HealthMonitor", &listener.object_id).unwrap();
     
     let health_str : String = {
         let comps = match game.get_components("Health", &health_monitor.subject_id) {
