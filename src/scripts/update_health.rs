@@ -23,7 +23,6 @@ pub fn update_health(game: &mut GameManager, ev : &GameEvent, listener : &Listen
             Some(c) => c
         };
 
-
         let comps = match game.get_components("Health", obj_id.0.as_str()) {
             None => return vec![],
             Some(c) => c
@@ -47,6 +46,7 @@ pub fn update_health(game: &mut GameManager, ev : &GameEvent, listener : &Listen
         Some(c) => c,
         None => return vec![]
     };
+    
     comp[0].data = serde_json::to_string(&tb).unwrap();
 
     return vec![];

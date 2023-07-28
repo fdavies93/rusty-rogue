@@ -2,7 +2,7 @@ use anyhow::{Context, Result, Error};
 
 use game::GameManager;
 use events::{GameEvent, Listener, GameEventQueue, InputData, TickData};
-use components::{WorldPosition, Glyph, TileMap, TileType, Health, HealthMonitor, TextBox, ScreenPosition, Monitor};
+use components::{WorldPosition, Glyph, TileMap, TileType, Health, TextBox, ScreenPosition, Monitor};
 use scripts::{player_move, on_hit, update_health};
 
 use ratatui::{backend::CrosstermBackend, widgets::{Paragraph, canvas::Map}, Terminal, layout::Rect};

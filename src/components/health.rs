@@ -13,14 +13,3 @@ impl IsComponent for Health {
         String::from_str("Health").unwrap()
     }
 }
-
-#[derive(Serialize, Deserialize)]
-pub struct HealthMonitor {
-    pub subject_id: String
-}
-
-impl IsComponent for HealthMonitor {
-    fn get_type_name(&self) -> String {
-        String::from_str("HealthMonitor").unwrap()
-    }
-}
