@@ -2,7 +2,7 @@ use anyhow::{Context, Result, Error};
 
 use game::GameManager;
 use events::{GameEvent, Listener, GameEventQueue, InputData, TickData};
-use components::{WorldPosition, Glyph, TileMap, TileType, Health, HealthMonitor, TextBox, ScreenPosition};
+use components::{WorldPosition, Glyph, TileMap, TileType, Health, HealthMonitor, TextBox, ScreenPosition, Monitor};
 use scripts::{player_move, on_hit, update_health};
 
 use ratatui::{backend::CrosstermBackend, widgets::{Paragraph, canvas::Map}, Terminal, layout::Rect};
@@ -60,8 +60,8 @@ fn main() -> Result<()> {
         value: String::from_str("?/?")?
     };
 
-    let enemy_health_monitor = HealthMonitor {
-        subject_id: String::from_str("enemy").unwrap()
+    let enemy_health_monitor = Monitor {
+        to_monitor: vec![(String::from_str("enemy")?, String::from_str("Health")?)]
     };
 
     let enemy_health_pos = ScreenPosition {
@@ -103,7 +103,7 @@ fn main() -> Result<()> {
     );
 
     let update_listener = Listener::new(
-        vec!["game.on_hit"],
+        vec!["game.tick"],
         "enemy_hb",
         update_health
     );

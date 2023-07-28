@@ -12,7 +12,10 @@ pub fn on_hit(game: &mut GameManager, ev : &GameEvent, listener : &Listener) -> 
         return vec![]        
     }
 
-    let mut health: Health = game.get_component_data("Health", &hit_data.target).unwrap();
+    let mut health: Health = match game.get_component_data("Health", &hit_data.target) {
+        None => return vec![],
+        Some(c) => c
+    };
 
     health.current_health -= 1;
 
@@ -25,7 +28,7 @@ pub fn on_hit(game: &mut GameManager, ev : &GameEvent, listener : &Listener) -> 
         ];
     }
     
-    let mut components = game.get_components("Health", &listener.object_id).unwrap();
+    let mut components = game.get_components("Health", &hit_data.target).unwrap();
 
     components[0].data = serde_json::to_string(&health).unwrap();
 

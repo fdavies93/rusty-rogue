@@ -190,7 +190,7 @@ pub fn assemble_render(game : &mut GameManager) -> Box<dyn FnMut(&mut Frame<Cros
 /// events. There is a 250ms timeout on the event poll so that the application can exit in a timely
 /// manner, and to ensure that the terminal is rendered at least once every 250ms.
 pub fn poll() -> Result<KeyCode> {
-    if event::poll(Duration::from_millis(1000)).context("event poll failed")? {
+    if event::poll(Duration::from_millis(25)).context("event poll failed")? {
         if let Event::Key(key) = event::read().context("event read failed")? {
             return Ok(key.code);
         }

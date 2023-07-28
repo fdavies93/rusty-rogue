@@ -3,17 +3,29 @@ use ratatui::text::Text;
 use std::stringify;
 use crate::game::GameManager;
 use crate::events::{GameEvent, Listener, TickData};
-use crate::components::{ScreenPosition, HealthMonitor, TextBox, Vector2, Health};
+use crate::components::{ScreenPosition, Monitor, TextBox, Vector2, Health};
 
 pub fn update_health(game: &mut GameManager, ev : &GameEvent, listener : &Listener) -> Vec<GameEvent> {
     // we don't care about the event as it holds no useful info
     // this should be the component
-    
-    let health_monitor : HealthMonitor = game.get_component_data("HealthMonitor", &listener.object_id).unwrap();
+
+    let monitor : Monitor = match game.get_component_data("Monitor", &listener.object_id) {
+        None => return vec![],
+        Some(c) => c
+    };
     
     let health_str : String = {
-        let comps = match game.get_components("Health", &health_monitor.subject_id) {
-            None => vec![],
+
+        let obj_id = monitor.to_monitor.iter().find(|p| -> bool { p.1 == "Health" });
+
+        let obj_id = match obj_id {
+            None => return vec![],
+            Some(c) => c
+        };
+
+
+        let comps = match game.get_components("Health", obj_id.0.as_str()) {
+            None => return vec![],
             Some(c) => c
         };
 
@@ -31,7 +43,10 @@ pub fn update_health(game: &mut GameManager, ev : &GameEvent, listener : &Listen
         value: health_str
     };
 
-    let mut comp = game.get_components("TextBox", listener.object_id.as_str()).unwrap();
+    let mut comp = match game.get_components("TextBox", listener.object_id.as_str()) {
+        Some(c) => c,
+        None => return vec![]
+    };
     comp[0].data = serde_json::to_string(&tb).unwrap();
 
     return vec![];
