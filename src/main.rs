@@ -1,24 +1,32 @@
-use anyhow::{Context, Result, Error};
+use anyhow::{Context, Error, Result};
 
+use components::{
+    Glyph, Health, Monitor, ScreenPosition, TextBox, TileMap, TileType, WorldPosition,
+};
+use events::{GameEvent, GameEventQueue, InputData, Listener, TickData};
 use game::GameManager;
-use events::{GameEvent, Listener, GameEventQueue, InputData, TickData};
-use components::{WorldPosition, Glyph, TileMap, TileType, Health, TextBox, ScreenPosition, Monitor};
-use scripts::{player_move, on_hit, update_health};
+use scripts::{on_hit, player_move, update_health};
 
-use ratatui::{backend::CrosstermBackend, widgets::{Paragraph, canvas::Map}, Terminal, layout::Rect};
+use crossterm::event::{self, Event, KeyCode};
+use ratatui::{
+    backend::CrosstermBackend,
+    layout::Rect,
+    widgets::{canvas::Map, Paragraph},
+    Terminal,
+};
 use std::{
+    collections::HashMap,
     io::{self, Stdout},
-    time::Duration, collections::HashMap, str::FromStr,
-};
-use crossterm::{
-    event::{self, Event, KeyCode},
+    str::FromStr,
+    time::Duration,
 };
 
-mod rterm;
-mod game;
 mod components;
 mod events;
+mod game;
+mod rterm;
 mod scripts;
+mod systems;
 
 /// This is a bare minimum example. There are many approaches to running an application loop, so
 /// this is not meant to be prescriptive. It is only meant to demonstrate the basic setup and
@@ -30,26 +38,18 @@ mod scripts;
 /// presses 'q'.
 fn main() -> Result<()> {
     let mut terminal = rterm::setup_terminal().context("setup failed")?;
-    
-    let player_pos = WorldPosition {
-        x: 1,
-        y: 1,
-        map: 0
-    };
 
-    let player_glyph = Glyph {
-        glyph: '@'
-    };
+    let player_pos = WorldPosition { x: 1, y: 1, map: 0 };
+
+    let player_glyph = Glyph { glyph: '@' };
 
     let enemy_pos = WorldPosition {
         x: 10,
         y: 10,
-        map: 0
+        map: 0,
     };
 
-    let enemy_glyph = Glyph {
-        glyph: 'M'
-    };
+    let enemy_glyph = Glyph { glyph: 'M' };
 
     let enemy_health = Health {
         current_health: 10,
@@ -57,24 +57,39 @@ fn main() -> Result<()> {
     };
 
     let enemy_health_box = TextBox {
-        value: String::from_str("?/?")?
+        value: String::from_str("?/?")?,
     };
 
     let enemy_health_monitor = Monitor {
-        to_monitor: vec![(String::from_str("enemy")?, String::from_str("Health")?)]
+        to_monitor: vec![(String::from_str("enemy")?, String::from_str("Health")?)],
     };
 
-    let enemy_health_pos = ScreenPosition {
-        x: 0,
-        y: 0
-    };
+    let enemy_health_pos = ScreenPosition { x: 0, y: 0 };
 
     // ratatui handles text overflowing the buffer by truncating it - good
     // translating from world -> camera space should therefore be sufficient
     // for rendering to succeed even on large maps
-    let mut map = TileMap::new( (15,15) );
-    map.draw_rect(&Rect { x: 0, y: 0, width: 15, height: 15 }, TileType::WALL, false);
-    map.draw_rect(&Rect { x: 6, y: 6, width: 3, height: 3 }, TileType::WALL, true);
+    let mut map = TileMap::new((15, 15));
+    map.draw_rect(
+        &Rect {
+            x: 0,
+            y: 0,
+            width: 15,
+            height: 15,
+        },
+        TileType::WALL,
+        false,
+    );
+    map.draw_rect(
+        &Rect {
+            x: 6,
+            y: 6,
+            width: 3,
+            height: 3,
+        },
+        TileType::WALL,
+        true,
+    );
 
     let mut game = GameManager::new();
 
@@ -90,24 +105,12 @@ fn main() -> Result<()> {
 
     let mut eq = GameEventQueue::new();
 
-    let input_listener = Listener::new(
-        vec!["input.key_press"], 
-        "player", 
-        player_move
-    );
+    let input_listener = Listener::new(vec!["input.key_press"], "player", player_move);
 
-    let hit_listener = Listener::new(
-        vec!["game.on_hit"],
-        "enemy",
-        on_hit
-    );
+    let hit_listener = Listener::new(vec!["game.on_hit"], "enemy", on_hit);
 
-    let update_listener = Listener::new(
-        vec!["game.tick"],
-        "enemy_hb",
-        update_health
-    );
-    
+    let update_listener = Listener::new(vec!["game.tick"], "enemy_hb", update_health);
+
     eq.attach_listener(input_listener);
     eq.attach_listener(hit_listener);
     eq.attach_listener(update_listener);
@@ -119,36 +122,37 @@ fn main() -> Result<()> {
 }
 
 // Render and poll terminal for keypress events
-pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, game : &mut GameManager, eq : &mut GameEventQueue) -> Result<()> {
+pub fn run(
+    terminal: &mut Terminal<CrosstermBackend<Stdout>>,
+    game: &mut GameManager,
+    eq: &mut GameEventQueue,
+) -> Result<()> {
     let mut cur_tick: u16 = 0;
     let start_ev = GameEvent {
         ev_type: "game.start".to_string(),
-        data: "".to_string()
+        data: "".to_string(),
     };
     eq.trigger_listeners(game, start_ev);
- 
+
     loop {
         terminal.draw(rterm::assemble_render(game))?;
         let key = rterm::poll()?;
         let input_ev = GameEvent {
             ev_type: "input.key_press".to_string(),
-            data: serde_json::to_string( &InputData {
-                key_code: key
-            })?
+            data: serde_json::to_string(&InputData { key_code: key })?,
         };
 
         let update_ev = GameEvent {
             ev_type: "game.tick".to_string(),
-            data: serde_json::to_string( &TickData {
-                tick: cur_tick
-            } )?
+            data: serde_json::to_string(&TickData { tick: cur_tick })?,
         };
 
         eq.trigger_listeners(game, update_ev);
 
-        if key == KeyCode::Esc { break }
+        if key == KeyCode::Esc {
+            break;
+        }
         eq.trigger_listeners(game, input_ev);
-        
     }
     Ok(())
 }
